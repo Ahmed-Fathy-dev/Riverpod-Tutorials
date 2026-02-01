@@ -749,17 +749,17 @@ const double pi = 3.14159;
 > متستخدمش State Management لكل حاجة!
 
 **استخدم `setState` العادي لـ:**
-- State محلي لـ Widget واحد بس
+- حالة (State) محلية لـ Widget واحد بس
 - حاجات بسيطة زي إظهار/إخفاء password
-- Animation controllers
-- Form validation محلية
+- متحكمات الرسوم المتحركة (Animation controllers)
+- فحص النماذج (Form validation) المحلي
 
 **استخدم State Management لـ:**
-- State مشترك بين عدة Widgets
-- Business logic معقدة
-- Data من APIs
-- User authentication
-- Theme/Settings عامة
+- حالة (State) مشتركة بين عدة Widgets
+- منطق الأعمال (Business logic) المعقد
+- بيانات (Data) من الـ APIs
+- مصادقة المستخدم (User authentication)
+- الثيم والإعدادات (Theme/Settings) العامة
 
 ---
 
