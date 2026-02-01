@@ -8,17 +8,18 @@
 
 في الملف ده هنبني:
 - تطبيق Todo كامل من الصفر
-- استخدام كل اللي اتعلمناه
-- Code generation
-- Best practices
+- استخدام كل اللي اتعلمناه (Classic Syntax)
+- تطبيق Best Practices
+- Project organization
 
 ## 🎯 الهدف
 
 بعد ما تخلص القراءة، هتقدر:
-- تبني تطبيق كامل بـ Riverpod
+- تبني تطبيق كامل بـ Riverpod Classic Syntax
 - تطبق كل المفاهيم الأساسية
 - تتبع Best Practices
 - تفهم الـ code organization
+- تستخدم Notifier للـ complex state
 
 ---
 
@@ -74,7 +75,6 @@ lib/
 │   └── todo.dart
 ├── providers/
 │   ├── todos_provider.dart
-│   ├── todos_provider.g.dart
 │   └── filter_provider.dart
 ├── screens/
 │   └── todos_page.dart
@@ -98,7 +98,6 @@ lib/
 ```yaml
 name: todo_app
 description: Todo app with Riverpod
-version: 1.0.0
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
@@ -106,20 +105,17 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  flutter_riverpod: ^2.5.0
-  riverpod_annotation: ^2.3.0
+  flutter_riverpod: ^3.0.0
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  riverpod_generator: ^2.4.0
-  build_runner: ^2.4.0
   flutter_lints: ^3.0.0
 ```
 
 <div dir="rtl">
 
-### Install
+### التثبيت
 
 </div>
 
@@ -131,40 +127,35 @@ flutter pub get
 
 ---
 
-## 📦 الخطوة 2: Models
+## 📦 الخطوة 2: Model
 
 ### lib/models/todo.dart
 
 </div>
 
 ```dart
-import 'package:flutter/foundation.dart';
-
-@immutable
+// Todo model - represents a single todo item
 class Todo {
   final String id;
   final String title;
-  final bool isCompleted;
-  final DateTime createdAt;
+  final bool completed;
 
   const Todo({
     required this.id,
     required this.title,
-    this.isCompleted = false,
-    required this.createdAt,
+    this.completed = false,
   });
 
+  // CopyWith for immutable updates
   Todo copyWith({
     String? id,
     String? title,
-    bool? isCompleted,
-    DateTime? createdAt,
+    bool? completed,
   }) {
     return Todo(
       id: id ?? this.id,
       title: title ?? this.title,
-      isCompleted: isCompleted ?? this.isCompleted,
-      createdAt: createdAt ?? this.createdAt,
+      completed: completed ?? this.completed,
     );
   }
 
@@ -175,18 +166,14 @@ class Todo {
     return other is Todo &&
         other.id == id &&
         other.title == title &&
-        other.isCompleted == isCompleted;
+        other.completed == completed;
   }
 
   @override
-  int get hashCode {
-    return id.hashCode ^ title.hashCode ^ isCompleted.hashCode;
-  }
+  int get hashCode => id.hashCode ^ title.hashCode ^ completed.hashCode;
 
   @override
-  String toString() {
-    return 'Todo(id: $id, title: $title, isCompleted: $isCompleted)';
-  }
+  String toString() => 'Todo(id: $id, title: $title, completed: $completed)';
 }
 ```
 
@@ -201,27 +188,19 @@ class Todo {
 </div>
 
 ```dart
-import 'package:riverpod_annotation/riverpod_annotation.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-part 'filter_provider.g.dart';
-
+// Filter options enum
 enum TodoFilter {
   all,
   active,
   completed,
 }
 
-@riverpod
-class Filter extends _$Filter {
-  @override
-  TodoFilter build() {
-    return TodoFilter.all;
-  }
-
-  void setFilter(TodoFilter newFilter) {
-    state = newFilter;
-  }
-}
+// Simple StateProvider for filter selection
+final todoFilterProvider = StateProvider<TodoFilter>((ref) {
+  return TodoFilter.all; // Default: show all todos
+});
 ```
 
 <div dir="rtl">
@@ -231,90 +210,115 @@ class Filter extends _$Filter {
 </div>
 
 ```dart
-import 'package:riverpod_annotation/riverpod_annotation.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/todo.dart';
 import 'filter_provider.dart';
 
-part 'todos_provider.g.dart';
-
-@riverpod
-class Todos extends _$Todos {
+// Todos Notifier - manages the list of todos
+class TodosNotifier extends Notifier<List<Todo>> {
   @override
   List<Todo> build() {
-    // Initial empty list
+    // Initial state: empty list
     return [];
   }
 
+  // Add a new todo
   void addTodo(String title) {
     if (title.trim().isEmpty) return;
 
     final newTodo = Todo(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      id: DateTime.now().toString(),
       title: title.trim(),
-      createdAt: DateTime.now(),
     );
 
+    // Add to state immutably
     state = [...state, newTodo];
   }
 
+  // Toggle todo completion
   void toggleTodo(String id) {
     state = [
       for (final todo in state)
         if (todo.id == id)
-          todo.copyWith(isCompleted: !todo.isCompleted)
+          todo.copyWith(completed: !todo.completed)
         else
           todo,
     ];
   }
 
+  // Delete a todo
   void deleteTodo(String id) {
     state = state.where((todo) => todo.id != id).toList();
   }
 
+  // Edit todo title
+  void editTodo(String id, String newTitle) {
+    if (newTitle.trim().isEmpty) return;
+
+    state = [
+      for (final todo in state)
+        if (todo.id == id)
+          todo.copyWith(title: newTitle.trim())
+        else
+          todo,
+    ];
+  }
+
+  // Clear all completed todos
   void clearCompleted() {
-    state = state.where((todo) => !todo.isCompleted).toList();
+    state = state.where((todo) => !todo.completed).toList();
+  }
+
+  // Mark all as completed
+  void markAllComplete() {
+    state = [
+      for (final todo in state) todo.copyWith(completed: true),
+    ];
+  }
+
+  // Mark all as incomplete
+  void markAllIncomplete() {
+    state = [
+      for (final todo in state) todo.copyWith(completed: false),
+    ];
   }
 }
 
-// Filtered todos based on current filter
-@riverpod
-List<Todo> filteredTodos(FilteredTodosRef ref) {
-  final filter = ref.watch(filterProvider);
+// Todos Provider
+final todosProvider = NotifierProvider<TodosNotifier, List<Todo>>(
+  () => TodosNotifier(),
+);
+
+// Filtered todos provider (computed)
+final filteredTodosProvider = Provider<List<Todo>>((ref) {
+  final filter = ref.watch(todoFilterProvider);
   final todos = ref.watch(todosProvider);
 
   switch (filter) {
     case TodoFilter.all:
       return todos;
     case TodoFilter.active:
-      return todos.where((todo) => !todo.isCompleted).toList();
+      return todos.where((todo) => !todo.completed).toList();
     case TodoFilter.completed:
-      return todos.where((todo) => todo.isCompleted).toList();
+      return todos.where((todo) => todo.completed).toList();
   }
-}
+});
 
-// Active todos count
-@riverpod
-int activeTodosCount(ActiveTodosCountRef ref) {
+// Stats providers (computed)
+final uncompletedTodosCountProvider = Provider<int>((ref) {
   final todos = ref.watch(todosProvider);
-  return todos.where((todo) => !todo.isCompleted).length;
-}
+  return todos.where((todo) => !todo.completed).length;
+});
 
-// Completed todos count
-@riverpod
-int completedTodosCount(CompletedTodosCountRef ref) {
+final completedTodosCountProvider = Provider<int>((ref) {
   final todos = ref.watch(todosProvider);
-  return todos.where((todo) => todo.isCompleted).length;
-}
-```
+  return todos.where((todo) => todo.completed).length;
+});
 
-<div dir="rtl">
-
-### Generate Code
-
-</div>
-
-```bash
-flutter pub run build_runner watch
+final totalTodosCountProvider = Provider<int>((ref) {
+  final todos = ref.watch(todosProvider);
+  return todos.length;
+});
 ```
 
 <div dir="rtl">
@@ -333,126 +337,91 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/todo.dart';
 import '../providers/todos_provider.dart';
 
-class TodoItem extends ConsumerWidget {
+class TodoItem extends ConsumerStatefulWidget {
   final Todo todo;
 
-  const TodoItem({required this.todo});
+  const TodoItem({
+    super.key,
+    required this.todo,
+  });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return Dismissible(
-      key: Key(todo.id),
-      background: Container(
-        color: Colors.red,
-        alignment: Alignment.centerRight,
-        padding: EdgeInsets.only(right: 16),
-        child: Icon(Icons.delete, color: Colors.white),
-      ),
-      direction: DismissDirection.endToStart,
-      onDismissed: (_) {
-        ref.read(todosProvider.notifier).deleteTodo(todo.id);
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('تم حذف "${todo.title}"'),
-            action: SnackBarAction(
-              label: 'تراجع',
-              onPressed: () {
-                // Could implement undo here
-              },
-            ),
-          ),
-        );
-      },
-      child: Card(
-        margin: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-        child: ListTile(
-          leading: Checkbox(
-            value: todo.isCompleted,
-            onChanged: (_) {
-              ref.read(todosProvider.notifier).toggleTodo(todo.id);
-            },
-          ),
-          title: Text(
-            todo.title,
-            style: TextStyle(
-              decoration: todo.isCompleted
-                  ? TextDecoration.lineThrough
-                  : TextDecoration.none,
-              color: todo.isCompleted ? Colors.grey : Colors.black,
-            ),
-          ),
-          subtitle: Text(
-            _formatDate(todo.createdAt),
-            style: TextStyle(fontSize: 12, color: Colors.grey),
-          ),
-          trailing: IconButton(
-            icon: Icon(Icons.delete, color: Colors.red),
-            onPressed: () {
-              ref.read(todosProvider.notifier).deleteTodo(todo.id);
-            },
-          ),
-        ),
-      ),
-    );
-  }
-
-  String _formatDate(DateTime date) {
-    final now = DateTime.now();
-    final difference = now.difference(date);
-
-    if (difference.inDays == 0) {
-      if (difference.inHours == 0) {
-        return 'منذ ${difference.inMinutes} دقيقة';
-      }
-      return 'منذ ${difference.inHours} ساعة';
-    } else if (difference.inDays == 1) {
-      return 'أمس';
-    } else {
-      return 'منذ ${difference.inDays} يوم';
-    }
-  }
+  ConsumerState<TodoItem> createState() => _TodoItemState();
 }
-```
 
-<div dir="rtl">
+class _TodoItemState extends ConsumerState<TodoItem> {
+  bool _isEditing = false;
+  late TextEditingController _controller;
+  late FocusNode _focusNode;
 
-### lib/widgets/todo_list.dart
-
-</div>
-
-```dart
-import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../providers/todos_provider.dart';
-import 'todo_item.dart';
-
-class TodoList extends ConsumerWidget {
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final todos = ref.watch(filteredTodosProvider);
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.todo.title);
+    _focusNode = FocusNode();
+  }
 
-    if (todos.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.check_circle_outline, size: 80, color: Colors.grey),
-            SizedBox(height: 16),
-            Text(
-              'مفيش مهام! 🎉',
-              style: TextStyle(fontSize: 24, color: Colors.grey),
-            ),
-          ],
-        ),
-      );
+  @override
+  void dispose() {
+    _controller.dispose();
+    _focusNode.dispose();
+    super.dispose();
+  }
+
+  void _startEditing() {
+    setState(() => _isEditing = true);
+    _focusNode.requestFocus();
+  }
+
+  void _stopEditing() {
+    setState(() => _isEditing = false);
+    final newTitle = _controller.text.trim();
+    if (newTitle.isNotEmpty) {
+      ref.read(todosProvider.notifier).editTodo(widget.todo.id, newTitle);
+    } else {
+      _controller.text = widget.todo.title;
     }
+  }
 
-    return ListView.builder(
-      itemCount: todos.length,
-      itemBuilder: (context, index) {
-        return TodoItem(todo: todos[index]);
-      },
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      leading: Checkbox(
+        value: widget.todo.completed,
+        onChanged: (_) {
+          ref.read(todosProvider.notifier).toggleTodo(widget.todo.id);
+        },
+      ),
+      title: _isEditing
+          ? TextField(
+              controller: _controller,
+              focusNode: _focusNode,
+              onSubmitted: (_) => _stopEditing(),
+              decoration: const InputDecoration(
+                border: InputBorder.none,
+                contentPadding: EdgeInsets.zero,
+              ),
+            )
+          : GestureDetector(
+              onDoubleTap: _startEditing,
+              child: Text(
+                widget.todo.title,
+                style: TextStyle(
+                  decoration: widget.todo.completed
+                      ? TextDecoration.lineThrough
+                      : null,
+                  color: widget.todo.completed
+                      ? Colors.grey
+                      : null,
+                ),
+              ),
+            ),
+      trailing: IconButton(
+        icon: const Icon(Icons.delete, color: Colors.red),
+        onPressed: () {
+          ref.read(todosProvider.notifier).deleteTodo(widget.todo.id);
+        },
+      ),
     );
   }
 }
@@ -470,6 +439,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/todos_provider.dart';
 
 class AddTodoField extends ConsumerStatefulWidget {
+  const AddTodoField({super.key});
+
   @override
   ConsumerState<AddTodoField> createState() => _AddTodoFieldState();
 }
@@ -484,9 +455,8 @@ class _AddTodoFieldState extends ConsumerState<AddTodoField> {
   }
 
   void _addTodo() {
-    final title = _controller.text;
-
-    if (title.trim().isNotEmpty) {
+    final title = _controller.text.trim();
+    if (title.isNotEmpty) {
       ref.read(todosProvider.notifier).addTodo(title);
       _controller.clear();
     }
@@ -494,29 +464,20 @@ class _AddTodoFieldState extends ConsumerState<AddTodoField> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.all(16),
-      child: Row(
-        children: [
-          Expanded(
-            child: TextField(
-              controller: _controller,
-              decoration: InputDecoration(
-                hintText: 'أضف مهمة جديدة...',
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.add_task),
-              ),
-              textInputAction: TextInputAction.done,
-              onSubmitted: (_) => _addTodo(),
-            ),
-          ),
-          SizedBox(width: 8),
-          FloatingActionButton(
-            onPressed: _addTodo,
-            child: Icon(Icons.add),
-          ),
-        ],
+    return TextField(
+      controller: _controller,
+      decoration: InputDecoration(
+        hintText: 'What needs to be done?',
+        prefixIcon: const Icon(Icons.add),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+        ),
+        suffixIcon: IconButton(
+          icon: const Icon(Icons.send),
+          onPressed: _addTodo,
+        ),
       ),
+      onSubmitted: (_) => _addTodo(),
     );
   }
 }
@@ -534,56 +495,86 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/filter_provider.dart';
 
 class FilterButtons extends ConsumerWidget {
+  const FilterButtons({super.key});
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final currentFilter = ref.watch(filterProvider);
+    final currentFilter = ref.watch(todoFilterProvider);
 
-    return Padding(
-      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          _FilterChip(
-            label: 'الكل',
-            isSelected: currentFilter == TodoFilter.all,
-            onTap: () => ref.read(filterProvider.notifier).setFilter(TodoFilter.all),
-          ),
-          SizedBox(width: 8),
-          _FilterChip(
-            label: 'نشطة',
-            isSelected: currentFilter == TodoFilter.active,
-            onTap: () => ref.read(filterProvider.notifier).setFilter(TodoFilter.active),
-          ),
-          SizedBox(width: 8),
-          _FilterChip(
-            label: 'مكتملة',
-            isSelected: currentFilter == TodoFilter.completed,
-            onTap: () => ref.read(filterProvider.notifier).setFilter(TodoFilter.completed),
-          ),
-        ],
-      ),
+    return SegmentedButton<TodoFilter>(
+      segments: const [
+        ButtonSegment(
+          value: TodoFilter.all,
+          label: Text('All'),
+          icon: Icon(Icons.list),
+        ),
+        ButtonSegment(
+          value: TodoFilter.active,
+          label: Text('Active'),
+          icon: Icon(Icons.radio_button_unchecked),
+        ),
+        ButtonSegment(
+          value: TodoFilter.completed,
+          label: Text('Done'),
+          icon: Icon(Icons.check_circle),
+        ),
+      ],
+      selected: {currentFilter},
+      onSelectionChanged: (Set<TodoFilter> newSelection) {
+        ref.read(todoFilterProvider.notifier).state = newSelection.first;
+      },
     );
   }
 }
+```
 
-class _FilterChip extends StatelessWidget {
-  final String label;
-  final bool isSelected;
-  final VoidCallback onTap;
+<div dir="rtl">
 
-  const _FilterChip({
-    required this.label,
-    required this.isSelected,
-    required this.onTap,
-  });
+### lib/widgets/todo_list.dart
+
+</div>
+
+```dart
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../providers/todos_provider.dart';
+import 'todo_item.dart';
+
+class TodoList extends ConsumerWidget {
+  const TodoList({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return FilterChip(
-      label: Text(label),
-      selected: isSelected,
-      onSelected: (_) => onTap(),
-      selectedColor: Theme.of(context).primaryColor.withOpacity(0.2),
+  Widget build(BuildContext context, WidgetRef ref) {
+    final todos = ref.watch(filteredTodosProvider);
+
+    if (todos.isEmpty) {
+      return const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.inbox, size: 80, color: Colors.grey),
+            SizedBox(height: 16),
+            Text(
+              'No todos yet!',
+              style: TextStyle(
+                fontSize: 18,
+                color: Colors.grey,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return ListView.builder(
+      itemCount: todos.length,
+      itemBuilder: (context, index) {
+        final todo = todos[index];
+        return TodoItem(
+          key: ValueKey(todo.id),
+          todo: todo,
+        );
+      },
     );
   }
 }
@@ -593,7 +584,7 @@ class _FilterChip extends StatelessWidget {
 
 ---
 
-## 🖥️ الخطوة 5: Screen
+## 📱 الخطوة 5: Screen
 
 ### lib/screens/todos_page.dart
 
@@ -603,44 +594,81 @@ class _FilterChip extends StatelessWidget {
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/todos_provider.dart';
+import '../providers/filter_provider.dart';
 import '../widgets/add_todo_field.dart';
 import '../widgets/filter_buttons.dart';
 import '../widgets/todo_list.dart';
 
 class TodosPage extends ConsumerWidget {
+  const TodosPage({super.key});
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final activeTodosCount = ref.watch(activeTodosCountProvider);
-    final completedTodosCount = ref.watch(completedTodosCountProvider);
+    final activeCount = ref.watch(uncompletedTodosCountProvider);
+    final completedCount = ref.watch(completedTodosCountProvider);
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('مهامي ($activeTodosCount)'),
-        actions: [
-          if (completedTodosCount > 0)
-            TextButton(
-              onPressed: () {
-                ref.read(todosProvider.notifier).clearCompleted();
-
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('تم حذف المهام المكتملة'),
-                  ),
-                );
-              },
-              child: Text(
-                'حذف المكتملة',
-                style: TextStyle(color: Colors.white),
-              ),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('My Todos'),
+            Text(
+              '$activeCount active, $completedCount completed',
+              style: const TextStyle(fontSize: 12),
             ),
+          ],
+        ),
+        actions: [
+          PopupMenuButton<String>(
+            onSelected: (value) {
+              switch (value) {
+                case 'mark_all_complete':
+                  ref.read(todosProvider.notifier).markAllComplete();
+                  break;
+                case 'mark_all_incomplete':
+                  ref.read(todosProvider.notifier).markAllIncomplete();
+                  break;
+                case 'clear_completed':
+                  ref.read(todosProvider.notifier).clearCompleted();
+                  break;
+              }
+            },
+            itemBuilder: (context) => [
+              const PopupMenuItem(
+                value: 'mark_all_complete',
+                child: Text('Mark all complete'),
+              ),
+              const PopupMenuItem(
+                value: 'mark_all_incomplete',
+                child: Text('Mark all incomplete'),
+              ),
+              const PopupMenuItem(
+                value: 'clear_completed',
+                child: Text('Clear completed'),
+              ),
+            ],
+          ),
         ],
       ),
       body: Column(
         children: [
-          FilterButtons(),
-          Divider(),
-          Expanded(child: TodoList()),
-          AddTodoField(),
+          // Filter buttons
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              children: [
+                const FilterButtons(),
+                const SizedBox(height: 16),
+                const AddTodoField(),
+              ],
+            ),
+          ),
+          const Divider(height: 1),
+          // Todo list
+          const Expanded(
+            child: TodoList(),
+          ),
         ],
       ),
     );
@@ -665,28 +693,26 @@ import 'screens/todos_page.dart';
 
 void main() {
   runApp(
-    ProviderScope(
+    const ProviderScope(
       child: MyApp(),
     ),
   );
 }
 
 class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Todo App',
-      debugShowCheckedModeBanner: false,
+      title: 'Riverpod Todo App',
       theme: ThemeData(
         primarySwatch: Colors.blue,
         useMaterial3: true,
-        appBarTheme: AppBarTheme(
-          backgroundColor: Colors.blue,
-          foregroundColor: Colors.white,
-          elevation: 2,
-        ),
       ),
-      home: TodosPage(),
+      darkTheme: ThemeData.dark(useMaterial3: true),
+      home: const TodosPage(),
+      debugShowCheckedModeBanner: false,
     );
   }
 }
@@ -696,15 +722,11 @@ class MyApp extends StatelessWidget {
 
 ---
 
-## ▶️ الخطوة 7: Run
+## 🏃 تشغيل التطبيق
 
 </div>
 
 ```bash
-# Generate code (if not already running watch)
-flutter pub run build_runner build
-
-# Run app
 flutter run
 ```
 
@@ -712,154 +734,170 @@ flutter run
 
 ---
 
-## 🎯 المفاهيم اللي استخدمناها
+## 🎯 شرح الأجزاء المهمة
 
-### 1. Providers
-
-</div>
-
-```dart
-✅ @riverpod class - للـ state management
-✅ @riverpod function - للـ computed values
-✅ Code generation - أقل boilerplate
-```
-
-<div dir="rtl">
-
-### 2. Reading Providers
+### 1. Notifier للـ Complex State
 
 </div>
 
 ```dart
-✅ ref.watch - للـ UI updates
-✅ ref.read - للـ actions
-✅ Computed providers - للقيم المحسوبة
+class TodosNotifier extends Notifier<List<Todo>> {
+  @override
+  List<Todo> build() => [];
+
+  void addTodo(String title) {
+    state = [...state, newTodo]; // Immutable update
+  }
+}
 ```
 
 <div dir="rtl">
 
-### 3. State Management
+**ليه استخدمنا Notifier؟**
+- الـ state معقد (List of objects)
+- محتاجين methods متعددة (add, delete, toggle, etc.)
+- فيه business logic (validation, filtering)
+
+**ليه مش StateProvider؟**
+- StateProvider للـ state البسيط فقط (int, bool, String)
+- مش مناسب للـ lists أو objects معقدة
+
+### 2. Computed Providers (Provider)
 
 </div>
 
 ```dart
-✅ Immutable state - باستخدام copyWith
-✅ State updates - باستخدام state = ...
-✅ Filters - باستخدام computed providers
+final filteredTodosProvider = Provider<List<Todo>>((ref) {
+  final filter = ref.watch(todoFilterProvider);
+  final todos = ref.watch(todosProvider);
+
+  switch (filter) {
+    case TodoFilter.all: return todos;
+    case TodoFilter.active: return todos.where((t) => !t.completed).toList();
+    case TodoFilter.completed: return todos.where((t) => t.completed).toList();
+  }
+});
 ```
 
 <div dir="rtl">
 
-### 4. Best Practices
+**ليه Provider؟**
+- القيمة مُحسوبة من providers تانية
+- مش بنعدل عليها مباشرة
+- بتتحدث تلقائياً لما الـ dependencies تتغير
+
+### 3. Separation of Concerns
+
+**Models:** بيانات فقط (Todo class)
+**Providers:** Business logic + State management
+**Widgets:** UI فقط، مفيش logic
+
+**الفايدة:**
+- سهولة الاختبار
+- إعادة الاستخدام
+- صيانة أسهل
+
+### 4. Immutability
 
 </div>
 
 ```dart
-✅ Feature-based organization
-✅ Separate widgets
-✅ ConsumerWidget للـ widgets
-✅ ConsumerStatefulWidget عند الحاجة
+// ✅ GOOD: Create new list
+state = [...state, newTodo];
+
+// ❌ BAD: Mutate existing list
+state.add(newTodo); // Won't trigger rebuild!
 ```
 
 <div dir="rtl">
+
+**ليه Immutability مهم؟**
+- Riverpod بيتابع التغييرات عن طريق object identity
+- لو عدلت في نفس الـ object، مش هيعرف إنه اتغير
+- لازم تعمل object جديد عشان Riverpod يعرف
 
 ---
 
-## 🚀 تحسينات ممكنة
+## 💡 تحسينات ممكنة
 
-### تحسين 1: Persistence
+### 1. Persistence (حفظ البيانات)
 
 </div>
 
 ```dart
-// Save to SharedPreferences
-@riverpod
-class Todos extends _$Todos {
+class TodosNotifier extends Notifier<List<Todo>> {
   @override
   List<Todo> build() {
-    _loadFromStorage();
+    // Load from storage
+    _loadTodos();
     return [];
   }
 
-  Future<void> _loadFromStorage() async {
+  Future<void> _loadTodos() async {
     final prefs = await SharedPreferences.getInstance();
-    // Load and set state
+    final todosJson = prefs.getString('todos');
+    if (todosJson != null) {
+      // Parse and set state
+    }
   }
 
-  void addTodo(String title) {
-    // ... add todo
-    _saveToStorage();
-  }
-
-  Future<void> _saveToStorage() async {
+  Future<void> _saveTodos() async {
     final prefs = await SharedPreferences.getInstance();
-    // Save state
+    // Save state to storage
   }
-}
-```
 
-<div dir="rtl">
-
-### تحسين 2: Categories
-
-</div>
-
-```dart
-class Todo {
-  final String category; // Work, Personal, etc.
-  // ...
-}
-
-@riverpod
-List<String> categories(CategoriesRef ref) {
-  final todos = ref.watch(todosProvider);
-  return todos.map((t) => t.category).toSet().toList();
-}
-```
-
-<div dir="rtl">
-
-### تحسين 3: Due Dates
-
-</div>
-
-```dart
-class Todo {
-  final DateTime? dueDate;
-  // ...
-}
-
-@riverpod
-List<Todo> overdueTodos(OverdueTodosRef ref) {
-  final todos = ref.watch(todosProvider);
-  final now = DateTime.now();
-
-  return todos.where((todo) {
-    final due = todo.dueDate;
-    return due != null && due.isBefore(now) && !todo.isCompleted;
-  }).toList();
-}
-```
-
-<div dir="rtl">
-
-### تحسين 4: Search
-
-</div>
-
-```dart
-@riverpod
-class SearchQuery extends _$SearchQuery {
   @override
-  String build() => '';
-
-  void setQuery(String query) {
-    state = query;
+  void addTodo(String title) {
+    state = [...state, newTodo];
+    _saveTodos(); // Save after each change
   }
 }
+```
 
-@riverpod
-List<Todo> searchedTodos(SearchedTodosRef ref) {
+<div dir="rtl">
+
+### 2. Undo/Redo
+
+</div>
+
+```dart
+class TodosNotifier extends Notifier<List<Todo>> {
+  final List<List<Todo>> _history = [];
+  int _historyIndex = -1;
+
+  void _saveToHistory() {
+    _history.add(List.from(state));
+    _historyIndex++;
+  }
+
+  void undo() {
+    if (_historyIndex > 0) {
+      _historyIndex--;
+      state = List.from(_history[_historyIndex]);
+    }
+  }
+
+  void redo() {
+    if (_historyIndex < _history.length - 1) {
+      _historyIndex++;
+      state = List.from(_history[_historyIndex]);
+    }
+  }
+}
+```
+
+<div dir="rtl">
+
+### 3. Search/Sort
+
+</div>
+
+```dart
+// Search provider
+final searchQueryProvider = StateProvider<String>((ref) => '');
+
+// Filtered and searched todos
+final searchedTodosProvider = Provider<List<Todo>>((ref) {
   final todos = ref.watch(filteredTodosProvider);
   final query = ref.watch(searchQueryProvider).toLowerCase();
 
@@ -868,6 +906,91 @@ List<Todo> searchedTodos(SearchedTodosRef ref) {
   return todos.where((todo) {
     return todo.title.toLowerCase().contains(query);
   }).toList();
+});
+
+// Sort option
+enum TodoSort { alphabetical, dateAdded, priority }
+
+final todoSortProvider = StateProvider<TodoSort>((ref) {
+  return TodoSort.dateAdded;
+});
+```
+
+<div dir="rtl">
+
+---
+
+## 🧪 اختبار التطبيق
+
+### Test Example
+
+</div>
+
+```dart
+import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+void main() {
+  test('adds todo correctly', () {
+    final container = ProviderContainer();
+
+    // Initial state
+    expect(container.read(todosProvider), []);
+
+    // Add todo
+    container.read(todosProvider.notifier).addTodo('Test todo');
+
+    // Verify
+    final todos = container.read(todosProvider);
+    expect(todos.length, 1);
+    expect(todos.first.title, 'Test todo');
+    expect(todos.first.completed, false);
+
+    container.dispose();
+  });
+
+  test('toggles todo correctly', () {
+    final container = ProviderContainer();
+
+    // Add todo
+    container.read(todosProvider.notifier).addTodo('Test todo');
+    final todoId = container.read(todosProvider).first.id;
+
+    // Toggle
+    container.read(todosProvider.notifier).toggleTodo(todoId);
+
+    // Verify
+    final todo = container.read(todosProvider).first;
+    expect(todo.completed, true);
+
+    container.dispose();
+  });
+
+  test('filters work correctly', () {
+    final container = ProviderContainer();
+
+    // Add todos
+    container.read(todosProvider.notifier).addTodo('Todo 1');
+    container.read(todosProvider.notifier).addTodo('Todo 2');
+
+    // Complete first todo
+    final firstTodoId = container.read(todosProvider).first.id;
+    container.read(todosProvider.notifier).toggleTodo(firstTodoId);
+
+    // Test active filter
+    container.read(todoFilterProvider.notifier).state = TodoFilter.active;
+    expect(container.read(filteredTodosProvider).length, 1);
+
+    // Test completed filter
+    container.read(todoFilterProvider.notifier).state = TodoFilter.completed;
+    expect(container.read(filteredTodosProvider).length, 1);
+
+    // Test all filter
+    container.read(todoFilterProvider.notifier).state = TodoFilter.all;
+    expect(container.read(filteredTodosProvider).length, 2);
+
+    container.dispose();
+  });
 }
 ```
 
@@ -875,77 +998,71 @@ List<Todo> searchedTodos(SearchedTodosRef ref) {
 
 ---
 
-## 📊 ملخص
+## 📝 ملخص
 
-</div>
+**اللي عملناه:**
+1. ✅ Model واضح ومنظم (Todo class)
+2. ✅ Notifier للـ complex state management
+3. ✅ Provider للـ computed values
+4. ✅ StateProvider للـ simple state (filter)
+5. ✅ Separation of concerns (Models, Providers, Widgets)
+6. ✅ Immutability في كل التعديلات
+7. ✅ تطبيق كامل وشغال
 
-```
-ما بنيناه:
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-✅ Todo app كامل
-✅ Add/Edit/Delete todos
-✅ Filter todos
-✅ Counter للمهام
-✅ UI جميل ومنظم
+**المفاهيم المستخدمة:**
+- **NotifierProvider**: للـ todos list (complex state)
+- **Provider**: للـ filtered todos + stats (computed)
+- **StateProvider**: للـ filter selection (simple state)
+- **ref.watch()**: في build methods
+- **ref.read()**: في event handlers
+- **Immutable updates**: لكل تعديل على الـ state
 
-المفاهيم المستخدمة:
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-✅ Providers (@riverpod)
-✅ Code generation
-✅ ref.watch/read
-✅ Computed providers
-✅ ConsumerWidget
-✅ Best practices
-
-تعلمنا:
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-✅ Project structure
-✅ State management
-✅ UI organization
-✅ Real-world patterns
-```
-
-<div dir="rtl">
+**Best Practices المطبقة:**
+- Single responsibility لكل widget
+- Immutable state updates
+- Proper disposal (controllers, focus nodes)
+- Type-safe code
+- Testable architecture
 
 ---
 
 ## 🔗 الخطوة الجاية
 
-دلوقتي بعد ما بنيت تطبيق كامل، جاهز للمستوى الجاي:
-- **القسم 04: Core Concepts**
-- **Advanced Providers**
-- **Testing**
+دلوقتي بعد ما عملت تطبيق كامل بالـ Classic Syntax:
+
+**في Section 04** هنتعلم:
+- ref object بالتفصيل
+- Provider lifecycle
+- Dependency injection patterns
+- Family modifier
+- AutoDispose
+
+**في Section 06** هنتعلم:
+- Code Generation باستخدام `@riverpod`
+- إزاي نحول الكود ده لـ code generation
+- الفرق والمميزات
+
+**افتكر:** التطبيق ده استخدم Classic Syntax عشان تفهم الأساسيات. في Section 06 هتشوف إزاي Code Generation بيبسط الكود أكتر.
 
 ---
 
-## 💡 تمرين
+## 📚 المصادر
 
-جرب تضيف الميزات دي:
-
-</div>
-
-```
-□ Edit todo (double-tap to edit)
-□ Categories/Tags
-□ Due dates
-□ Search
-□ Sort (by date, alphabetically)
-□ Dark mode
-□ Persistence (SharedPreferences)
-□ Animations
-```
-
-<div dir="rtl">
+- [Riverpod Documentation](https://riverpod.dev)
+- [Provider Types Guide](https://riverpod.dev/docs/providers/provider)
+- [Notifier Guide](https://riverpod.dev/docs/providers/notifier_provider)
+- [Testing Guide](https://riverpod.dev/docs/cookbooks/testing)
 
 ---
 
-## ✅ تأكد إنك فهمت
+## ✅ Checklist
 
-- [ ] بنيت التطبيق وشغال؟
-- [ ] فاهم كل جزء في الكود؟
-- [ ] تقدر تضيف ميزات جديدة؟
-- [ ] جاهز للمستوى المتقدم؟
+قبل ما تكمل، تأكد من:
 
-**مبروك! خلصت Riverpod Basics** 🎉
+- [ ] التطبيق بيشتغل بدون أخطاء
+- [ ] فاهم الفرق بين Provider و StateProvider و NotifierProvider
+- [ ] فاهم ليه استخدمنا Notifier للـ todos
+- [ ] فاهم الـ immutability principle
+- [ ] جربت تضيف features جديدة (search, persistence)
 
 </div>
