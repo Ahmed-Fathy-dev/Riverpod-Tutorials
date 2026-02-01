@@ -31,8 +31,7 @@
 
 ```dart
 // Ref is your window to the provider ecosystem
-@riverpod
-class Counter extends _$Counter {
+class CounterNotifier extends Notifier<int> {
   @override
   int build() {
     // 'ref' is available here
@@ -43,6 +42,10 @@ class Counter extends _$Counter {
     return 0;
   }
 }
+
+final counterProvider = NotifierProvider<CounterNotifier, int>(
+  () => CounterNotifier(),
+);
 
 class MyWidget extends ConsumerWidget {
   @override
@@ -76,12 +79,11 @@ class MyWidget extends ConsumerWidget {
 
 ```dart
 // Inside providers
-@riverpod
-Future<User> user(UserRef ref) async {
-  // 'ref' is of type 'UserRef' which extends 'Ref'
+final userProvider = FutureProvider<User>((ref) async {
+  // 'ref' is of type 'Ref'
   final token = ref.watch(authTokenProvider);
   return api.getUser(token);
-}
+});
 ```
 
 <div dir="rtl">
@@ -148,8 +150,7 @@ final myProvider = Provider<MyService>((ref) {
 
 ```dart
 // The most common method
-@riverpod
-class ShoppingCart extends _$ShoppingCart {
+class ShoppingCartNotifier extends Notifier<List<Product>> {
   @override
   List<Product> build() {
     // Watch userId - rebuilds when it changes
@@ -158,7 +159,16 @@ class ShoppingCart extends _$ShoppingCart {
     // Load cart for this user
     return _loadCartForUser(userId);
   }
+
+  List<Product> _loadCartForUser(String userId) {
+    // Implementation
+    return [];
+  }
 }
+
+final shoppingCartProvider = NotifierProvider<ShoppingCartNotifier, List<Product>>(
+  () => ShoppingCartNotifier(),
+);
 
 // In widgets
 class CartWidget extends ConsumerWidget {
@@ -427,8 +437,7 @@ class CheckoutPage extends ConsumerWidget {
 }
 
 // Example 3: Listen to specific property
-@riverpod
-class ShoppingCart extends _$ShoppingCart {
+class ShoppingCartNotifier2 extends Notifier<CartState> {
   @override
   CartState build() {
     // Listen to currency changes
@@ -447,6 +456,10 @@ class ShoppingCart extends _$ShoppingCart {
     // Implementation
   }
 }
+
+final shoppingCartProvider2 = NotifierProvider<ShoppingCartNotifier2, CartState>(
+  () => ShoppingCartNotifier2(),
+);
 ```
 
 <div dir="rtl">
@@ -457,8 +470,7 @@ class ShoppingCart extends _$ShoppingCart {
 
 ```dart
 // Listen to your own state changes (in Notifiers)
-@riverpod
-class AutoSaveEditor extends _$AutoSaveEditor {
+class AutoSaveEditorNotifier extends Notifier<String> {
   @override
   String build() {
     // Listen to self and auto-save after changes
@@ -481,6 +493,10 @@ class AutoSaveEditor extends _$AutoSaveEditor {
     print('Auto-saved: $text');
   }
 }
+
+final autoSaveEditorProvider = NotifierProvider<AutoSaveEditorNotifier, String>(
+  () => AutoSaveEditorNotifier(),
+);
 ```
 
 <div dir="rtl">
@@ -491,7 +507,6 @@ class AutoSaveEditor extends _$AutoSaveEditor {
 
 ```dart
 // Force a provider to rebuild
-@riverpod
 class RefreshButton extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -587,8 +602,7 @@ final user = ref.refresh(userProvider);
 
 ```dart
 // Check if a provider exists in the scope
-@riverpod
-class ConditionalFeature extends _$ConditionalFeature {
+class ConditionalFeatureNotifier extends Notifier<bool> {
   @override
   bool build() {
     // Check if premium features provider exists
@@ -600,6 +614,10 @@ class ConditionalFeature extends _$ConditionalFeature {
     return false; // Default for non-premium users
   }
 }
+
+final conditionalFeatureProvider = NotifierProvider<ConditionalFeatureNotifier, bool>(
+  () => ConditionalFeatureNotifier(),
+);
 ```
 
 <div dir="rtl">
@@ -610,8 +628,7 @@ class ConditionalFeature extends _$ConditionalFeature {
 
 ```dart
 // Cleanup when provider is disposed
-@riverpod
-class WebSocketConnection extends _$WebSocketConnection {
+class WebSocketConnectionNotifier extends StreamNotifier<Message> {
   @override
   Stream<Message> build() {
     final socket = WebSocket.connect('ws://example.com');
@@ -626,9 +643,12 @@ class WebSocketConnection extends _$WebSocketConnection {
   }
 }
 
+final webSocketConnectionProvider = StreamNotifierProvider<WebSocketConnectionNotifier, Message>(
+  () => WebSocketConnectionNotifier(),
+);
+
 // Example: Timer cleanup
-@riverpod
-class PeriodicUpdater extends _$PeriodicUpdater {
+class PeriodicUpdaterNotifier extends Notifier<int> {
   Timer? _timer;
 
   @override
@@ -644,6 +664,10 @@ class PeriodicUpdater extends _$PeriodicUpdater {
     return 0;
   }
 }
+
+final periodicUpdaterProvider = NotifierProvider<PeriodicUpdaterNotifier, int>(
+  () => PeriodicUpdaterNotifier(),
+);
 ```
 
 <div dir="rtl">
@@ -654,8 +678,7 @@ class PeriodicUpdater extends _$PeriodicUpdater {
 
 ```dart
 // Advanced lifecycle control
-@riverpod
-class CachedData extends _$CachedData {
+class CachedDataNotifier extends AsyncNotifier<Data> {
   @override
   Future<Data> build() async {
     // Called when last listener is removed
@@ -675,7 +698,16 @@ class CachedData extends _$CachedData {
 
     return await fetchData();
   }
+
+  Future<Data> fetchData() async {
+    // Implementation
+    return Data();
+  }
 }
+
+final cachedDataProvider = AsyncNotifierProvider<CachedDataNotifier, Data>(
+  () => CachedDataNotifier(),
+);
 ```
 
 <div dir="rtl">
@@ -722,8 +754,7 @@ class Article {
 }
 
 // Providers
-@riverpod
-class ArticlesList extends _$ArticlesList {
+class ArticlesListNotifier extends AsyncNotifier<List<Article>> {
   @override
   Future<List<Article>> build() async {
     // Watch user preferences
@@ -753,6 +784,10 @@ class ArticlesList extends _$ArticlesList {
     return [];
   }
 }
+
+final articlesListProvider = AsyncNotifierProvider<ArticlesListNotifier, List<Article>>(
+  () => ArticlesListNotifier(),
+);
 
 // Widget
 class ArticlesFeed extends ConsumerWidget {
@@ -871,8 +906,7 @@ class GoodWidget extends ConsumerWidget {
 
 ```dart
 // ❌ WRONG - Memory leak!
-@riverpod
-class BadTimer extends _$BadTimer {
+class BadTimerNotifier extends Notifier<int> {
   @override
   int build() {
     Timer.periodic(Duration(seconds: 1), (timer) {
@@ -884,9 +918,12 @@ class BadTimer extends _$BadTimer {
   }
 }
 
+final badTimerProvider = NotifierProvider<BadTimerNotifier, int>(
+  () => BadTimerNotifier(),
+);
+
 // ✅ CORRECT
-@riverpod
-class GoodTimer extends _$GoodTimer {
+class GoodTimerNotifier extends Notifier<int> {
   Timer? _timer;
 
   @override
@@ -902,6 +939,10 @@ class GoodTimer extends _$GoodTimer {
     return 0;
   }
 }
+
+final goodTimerProvider = NotifierProvider<GoodTimerNotifier, int>(
+  () => GoodTimerNotifier(),
+);
 ```
 
 <div dir="rtl">
@@ -934,8 +975,7 @@ ref.listen(authProvider, (prev, next) {
 </div>
 
 ```dart
-@riverpod
-class MyProvider extends _$MyProvider {
+class MyStateNotifier extends Notifier<MyState> {
   @override
   MyState build() {
     final subscription = someStream.listen((data) {
@@ -949,6 +989,10 @@ class MyProvider extends _$MyProvider {
     return MyState.initial();
   }
 }
+
+final myStateProvider = NotifierProvider<MyStateNotifier, MyState>(
+  () => MyStateNotifier(),
+);
 ```
 
 <div dir="rtl">

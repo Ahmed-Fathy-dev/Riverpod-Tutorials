@@ -32,24 +32,16 @@
 
 ```dart
 // Without family: One provider for all users
-@riverpod
-class User extends _$User {
-  @override
-  Future<UserData> build() async {
-    // How do we know WHICH user?
-    return await api.getUser(); // ❌ Missing user ID
-  }
-}
+final userProvider = FutureProvider<UserData>((ref) async {
+  // How do we know WHICH user?
+  return await api.getUser(); // ❌ Missing user ID
+});
 
 // With family: Different provider instance for each user
-@riverpod
-class User extends _$User {
-  @override
-  Future<UserData> build(String userId) async {
-    // userId is the parameter!
-    return await api.getUser(userId);
-  }
-}
+final userProvider = FutureProvider.family<UserData, String>((ref, userId) async {
+  // userId is the parameter!
+  return await api.getUser(userId);
+});
 
 // Usage
 class UserProfile extends ConsumerWidget {
@@ -82,11 +74,10 @@ class UserProfile extends ConsumerWidget {
 </div>
 
 ```dart
-// Single parameter
-@riverpod
-Future<Product> product(ProductRef ref, String productId) async {
+// Single parameter with family
+final productProvider = FutureProvider.family<Product, String>((ref, productId) async {
   return await api.getProduct(productId);
-}
+});
 
 // Usage
 class ProductPage extends ConsumerWidget {
@@ -114,17 +105,17 @@ class ProductPage extends ConsumerWidget {
 </div>
 
 ```dart
-// Multiple parameters using a record
-@riverpod
-Future<List<Post>> userPosts(
-  UserPostsRef ref,
-  ({String userId, int page})  params,
-) async {
-  return await api.getUserPosts(
-    userId: params.userId,
-    page: params.page,
-  );
-}
+// Multiple parameters using a record with family
+typedef UserPostsParams = ({String userId, int page});
+
+final userPostsProvider = FutureProvider.family<List<Post>, UserPostsParams>(
+  (ref, params) async {
+    return await api.getUserPosts(
+      userId: params.userId,
+      page: params.page,
+    );
+  },
+);
 
 // Usage
 class UserPostsList extends ConsumerWidget {
@@ -155,12 +146,11 @@ class UserPostsList extends ConsumerWidget {
 </div>
 
 ```dart
-// Stateful provider with parameter
-@riverpod
-class TodoList extends _$TodoList {
+// Stateful provider with parameter using family
+class TodoListNotifier extends FamilyAsyncNotifier<List<Todo>, String> {
   @override
   Future<List<Todo>> build(String listId) async {
-    // Parameter is available in build
+    // Parameter is available via arg property
     return await api.getTodos(listId);
   }
 
@@ -182,6 +172,10 @@ class TodoList extends _$TodoList {
     await api.deleteTodo(todoId);
   }
 }
+
+final todoListProvider = AsyncNotifierProvider.family<TodoListNotifier, List<Todo>, String>(
+  () => TodoListNotifier(),
+);
 
 // Usage
 class TodoListWidget extends ConsumerWidget {
@@ -224,11 +218,10 @@ Family providers بيعملوا **automatic caching** لكل parameter value م�
 </div>
 
 ```dart
-@riverpod
-Future<User> user(UserRef ref, String userId) async {
+final userProvider = FutureProvider.family<User, String>((ref, userId) async {
   print('Fetching user: $userId');
   return await api.getUser(userId);
-}
+});
 
 // Widget 1
 class ProfilePage extends ConsumerWidget {
@@ -285,17 +278,18 @@ userProvider('3') → Instance 3 (cached)
 </div>
 
 ```dart
-// Default: AutoDispose
-@riverpod
-Future<Product> product(ProductRef ref, String id) async {
-  print('Creating provider for product: $id');
+// Default: AutoDispose with family
+final productProvider = FutureProvider.family.autoDispose<Product, String>(
+  (ref, id) async {
+    print('Creating provider for product: $id');
 
-  ref.onDispose(() {
-    print('Disposing provider for product: $id');
-  });
+    ref.onDispose(() {
+      print('Disposing provider for product: $id');
+    });
 
-  return await api.getProduct(id);
-}
+    return await api.getProduct(id);
+  },
+);
 
 // When widget is removed, the provider instance is disposed
 class ProductCard extends ConsumerWidget {
@@ -322,17 +316,18 @@ class ProductCard extends ConsumerWidget {
 </div>
 
 ```dart
-@riverpod
-Future<Article> article(ArticleRef ref, String id) async {
-  // Keep in cache for 5 minutes
-  final link = ref.keepAlive();
+final articleProvider = FutureProvider.family.autoDispose<Article, String>(
+  (ref, id) async {
+    // Keep in cache for 5 minutes
+    final link = ref.keepAlive();
 
-  Timer(Duration(minutes: 5), () {
-    link.close();
-  });
+    Timer(Duration(minutes: 5), () {
+      link.close();
+    });
 
-  return await api.getArticle(id);
-}
+    return await api.getArticle(id);
+  },
+);
 ```
 
 <div dir="rtl">
@@ -387,20 +382,18 @@ class PaginatedData<T> {
   });
 }
 
-// Provider with page parameter
-@riverpod
-Future<PaginatedData<Product>> productsPage(
-  ProductsPageRef ref,
-  int page,
-) async {
-  final products = await api.getProducts(page: page, limit: 20);
+// Provider with page parameter using family
+final productsPageProvider = FutureProvider.family<PaginatedData<Product>, int>(
+  (ref, page) async {
+    final products = await api.getProducts(page: page, limit: 20);
 
-  return PaginatedData(
-    items: products,
-    page: page,
-    hasMore: products.length == 20,
-  );
-}
+    return PaginatedData(
+      items: products,
+      page: page,
+      hasMore: products.length == 20,
+    );
+  },
+);
 
 // Widget
 class ProductList extends ConsumerStatefulWidget {
@@ -456,27 +449,25 @@ class _ProductListState extends ConsumerState<ProductList> {
 </div>
 
 ```dart
-// Search provider with query parameter
-@riverpod
-Future<List<Product>> searchProducts(
-  SearchProductsRef ref,
-  String query,
-) async {
-  // Don't search for empty queries
-  if (query.isEmpty) {
-    return [];
-  }
+// Search provider with query parameter using family
+final searchProductsProvider = FutureProvider.family.autoDispose<List<Product>, String>(
+  (ref, query) async {
+    // Don't search for empty queries
+    if (query.isEmpty) {
+      return [];
+    }
 
-  // Debounce: wait for user to stop typing
-  await Future.delayed(Duration(milliseconds: 300));
+    // Debounce: wait for user to stop typing
+    await Future.delayed(Duration(milliseconds: 300));
 
-  // Check if still the same query
-  if (ref.state is! AsyncLoading) {
-    return ref.state.value ?? [];
-  }
+    // Check if still the same query
+    if (ref.state is! AsyncLoading) {
+      return ref.state.value ?? [];
+    }
 
-  return await api.searchProducts(query);
-}
+    return await api.searchProducts(query);
+  },
+);
 
 // Search widget
 class SearchPage extends ConsumerStatefulWidget {
@@ -546,18 +537,16 @@ typedef ProductFilters = ({
   String? sortBy,
 });
 
-@riverpod
-Future<List<Product>> filteredProducts(
-  FilteredProductsRef ref,
-  ProductFilters filters,
-) async {
-  return await api.getProducts(
-    category: filters.category,
-    minPrice: filters.minPrice,
-    maxPrice: filters.maxPrice,
-    sortBy: filters.sortBy,
-  );
-}
+final filteredProductsProvider = FutureProvider.family<List<Product>, ProductFilters>(
+  (ref, filters) async {
+    return await api.getProducts(
+      category: filters.category,
+      minPrice: filters.minPrice,
+      maxPrice: filters.maxPrice,
+      sortBy: filters.sortBy,
+    );
+  },
+);
 
 // Usage
 class ProductsPage extends ConsumerWidget {
@@ -585,8 +574,7 @@ class ProductsPage extends ConsumerWidget {
 }
 
 // Filter state provider
-@riverpod
-class CurrentFilters extends _$CurrentFilters {
+class CurrentFiltersNotifier extends Notifier<ProductFilters> {
   @override
   ProductFilters build() {
     return (
@@ -624,6 +612,10 @@ class CurrentFilters extends _$CurrentFilters {
     );
   }
 }
+
+final currentFiltersProvider = NotifierProvider<CurrentFiltersNotifier, ProductFilters>(
+  () => CurrentFiltersNotifier(),
+);
 ```
 
 <div dir="rtl">
@@ -633,24 +625,21 @@ class CurrentFilters extends _$CurrentFilters {
 </div>
 
 ```dart
-// User profile provider
-@riverpod
-Future<User> user(UserRef ref, String userId) async {
+// User profile provider with family
+final userProvider = FutureProvider.family<User, String>((ref, userId) async {
   return await api.getUser(userId);
-}
+});
 
 // User's posts provider (depends on user)
-@riverpod
-Future<List<Post>> userPosts(UserPostsRef ref, String userId) async {
+final userPostsProvider = FutureProvider.family<List<Post>, String>((ref, userId) async {
   // Watch user to get additional info if needed
   final user = await ref.watch(userProvider(userId).future);
 
   return await api.getUserPosts(user.id);
-}
+});
 
 // User's followers provider
-@riverpod
-Future<List<User>> userFollowers(UserFollowersRef ref, String userId) async {
+final userFollowersProvider = FutureProvider.family<List<User>, String>((ref, userId) async {
   final followerIds = await api.getFollowerIds(userId);
 
   // Fetch each follower (reuses cached user providers!)
@@ -659,7 +648,7 @@ Future<List<User>> userFollowers(UserFollowersRef ref, String userId) async {
   );
 
   return followers;
-}
+});
 
 // Usage
 class UserProfilePage extends ConsumerWidget {
@@ -708,23 +697,20 @@ class UserProfilePage extends ConsumerWidget {
 
 ```dart
 // String
-@riverpod
-Future<User> user(UserRef ref, String id) async {
+final userProvider = FutureProvider.family<User, String>((ref, id) async {
   return await api.getUser(id);
-}
+});
 
 // int
-@riverpod
-Future<Page> page(PageRef ref, int pageNumber) async {
+final pageProvider = FutureProvider.family<Page, int>((ref, pageNumber) async {
   return await api.getPage(pageNumber);
-}
+});
 
 // bool
-@riverpod
-List<Product> products(ProductsRef ref, bool sortAscending) {
+final productsProvider = Provider.family<List<Product>, bool>((ref, sortAscending) {
   final all = ref.watch(allProductsProvider);
   return sortAscending ? all : all.reversed.toList();
-}
+});
 ```
 
 <div dir="rtl">
@@ -734,17 +720,17 @@ List<Product> products(ProductsRef ref, bool sortAscending) {
 </div>
 
 ```dart
-// Named record
-@riverpod
-Future<SearchResults> search(
-  SearchRef ref,
-  ({String query, int page}) params,
-) async {
-  return await api.search(
-    query: params.query,
-    page: params.page,
-  );
-}
+// Named record with family
+typedef SearchParams = ({String query, int page});
+
+final searchProvider = FutureProvider.family<SearchResults, SearchParams>(
+  (ref, params) async {
+    return await api.search(
+      query: params.query,
+      page: params.page,
+    );
+  },
+);
 
 // Usage
 ref.watch(searchProvider((query: 'flutter', page: 1)));
@@ -786,18 +772,16 @@ class SearchParams {
   }
 }
 
-// Provider
-@riverpod
-Future<SearchResults> advancedSearch(
-  AdvancedSearchRef ref,
-  SearchParams params,
-) async {
-  return await api.search(
-    query: params.query,
-    page: params.page,
-    category: params.category,
-  );
-}
+// Provider with family
+final advancedSearchProvider = FutureProvider.family<SearchResults, SearchParams>(
+  (ref, params) async {
+    return await api.search(
+      query: params.query,
+      page: params.page,
+      category: params.category,
+    );
+  },
+);
 
 // Usage
 final params = SearchParams(query: 'flutter', page: 1);
@@ -824,12 +808,11 @@ class Filters {
   // Missing == and hashCode
 }
 
-@riverpod
-List<Product> filtered(FilteredRef ref, Filters filters) {
+final filteredProvider = Provider.family<List<Product>, Filters>((ref, filters) {
   // Each call creates NEW provider instance!
   // Even with same values
   return [];
-}
+});
 
 // ✅ CORRECT - With equality
 class Filters {
@@ -866,11 +849,10 @@ class MutableFilters {
   MutableFilters(this.category, this.price);
 }
 
-@riverpod
-List<Product> filtered(FilteredRef ref, MutableFilters filters) {
+final filteredProvider2 = Provider.family<List<Product>, MutableFilters>((ref, filters) {
   // Dangerous! filters can change
   return [];
-}
+});
 
 // ✅ CORRECT - Immutable parameters
 class ImmutableFilters {
@@ -889,24 +871,22 @@ class ImmutableFilters {
 
 ```dart
 // ❌ WRONG - Keeping too many instances
-@riverpod
-Future<SearchResults> search(SearchRef ref, String query) async {
+final searchBadProvider = FutureProvider.family<SearchResults, String>((ref, query) async {
   // Keeps EVERY search query cached forever!
   ref.keepAlive();
 
   return await api.search(query);
-}
+});
 
 // ✅ CORRECT - Use AutoDispose or timed cache
-@riverpod
-Future<SearchResults> search(SearchRef ref, String query) async {
+final searchGoodProvider = FutureProvider.family.autoDispose<SearchResults, String>((ref, query) async {
   // AutoDispose by default
   // Or use timed cache
   final link = ref.keepAlive();
   Timer(Duration(minutes: 5), link.close);
 
   return await api.search(query);
-}
+});
 ```
 
 <div dir="rtl">
@@ -920,14 +900,14 @@ Future<SearchResults> search(SearchRef ref, String query) async {
 </div>
 
 ```dart
-// ✅ Good: Named record
-@riverpod
-Future<Data> data(
-  DataRef ref,
-  ({String id, int version}) params,
-) async {
-  return await api.getData(params.id, params.version);
-}
+// ✅ Good: Named record with family
+typedef DataParams = ({String id, int version});
+
+final dataProvider = FutureProvider.family<Data, DataParams>(
+  (ref, params) async {
+    return await api.getData(params.id, params.version);
+  },
+);
 
 // Usage is clear
 ref.watch(dataProvider((id: '123', version: 2)));
@@ -977,26 +957,28 @@ class SearchFilters {
 
 ```dart
 // For search/filters: Limited cache time
-@riverpod
-Future<List<Product>> search(SearchRef ref, String query) async {
-  final link = ref.keepAlive();
+final searchProvider2 = FutureProvider.family.autoDispose<List<Product>, String>(
+  (ref, query) async {
+    final link = ref.keepAlive();
 
-  // Cache for 2 minutes
-  Timer(Duration(minutes: 2), link.close);
+    // Cache for 2 minutes
+    Timer(Duration(minutes: 2), link.close);
 
-  return await api.search(query);
-}
+    return await api.search(query);
+  },
+);
 
 // For user data: Longer cache time
-@riverpod
-Future<User> user(UserRef ref, String userId) async {
-  final link = ref.keepAlive();
+final userProvider2 = FutureProvider.family.autoDispose<User, String>(
+  (ref, userId) async {
+    final link = ref.keepAlive();
 
-  // Cache for 30 minutes
-  Timer(Duration(minutes: 30), link.close);
+    // Cache for 30 minutes
+    Timer(Duration(minutes: 30), link.close);
 
-  return await api.getUser(userId);
-}
+    return await api.getUser(userId);
+  },
+);
 ```
 
 <div dir="rtl">

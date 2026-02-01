@@ -32,15 +32,15 @@
 </div>
 
 ```dart
-@riverpod
-Future<User> user(UserRef ref) async {
+// FutureProvider automatically captures errors in AsyncValue
+final userProvider = FutureProvider<User>((ref) async {
   try {
     return await api.getUser();
   } catch (error, stackTrace) {
     // Error is automatically captured by AsyncValue
     rethrow;
   }
-}
+});
 
 // In widget
 class UserProfile extends ConsumerWidget {
@@ -205,8 +205,8 @@ class DirectCheckWidget extends ConsumerWidget {
 </div>
 
 ```dart
-@riverpod
-Future<User> user(UserRef ref) async {
+// FutureProvider with detailed error handling
+final userProvider = FutureProvider<User>((ref) async {
   try {
     final response = await api.getUser();
     return response;
@@ -225,7 +225,7 @@ Future<User> user(UserRef ref) async {
     print('Stack trace: $stackTrace');
     throw UnknownError('Something went wrong');
   }
-}
+});
 ```
 
 <div dir="rtl">
@@ -235,8 +235,8 @@ Future<User> user(UserRef ref) async {
 </div>
 
 ```dart
-@riverpod
-class Todos extends _$Todos {
+// AsyncNotifier for mutable async state with error handling
+class TodosNotifier extends AsyncNotifier<List<Todo>> {
   @override
   Future<List<Todo>> build() async {
     try {
@@ -292,6 +292,10 @@ class Todos extends _$Todos {
     }
   }
 }
+
+final todosProvider = AsyncNotifierProvider<TodosNotifier, List<Todo>>(
+  () => TodosNotifier(),
+);
 ```
 
 <div dir="rtl">
@@ -332,8 +336,8 @@ class DataPage extends ConsumerWidget {
 </div>
 
 ```dart
-@riverpod
-Future<Data> dataWithRetry(DataWithRetryRef ref) async {
+// FutureProvider with automatic retry logic
+final dataWithRetryProvider = FutureProvider<Data>((ref) async {
   var retries = 0;
   const maxRetries = 3;
 
@@ -354,7 +358,7 @@ Future<Data> dataWithRetry(DataWithRetryRef ref) async {
       print('Retry $retries/$maxRetries');
     }
   }
-}
+});
 ```
 
 <div dir="rtl">
@@ -364,8 +368,8 @@ Future<Data> dataWithRetry(DataWithRetryRef ref) async {
 </div>
 
 ```dart
-@riverpod
-Future<User> userWithSmartRetry(UserWithSmartRetryRef ref) async {
+// FutureProvider with smart retry (based on error type)
+final userWithSmartRetryProvider = FutureProvider<User>((ref) async {
   var retries = 0;
   const maxRetries = 3;
 
@@ -392,7 +396,7 @@ Future<User> userWithSmartRetry(UserWithSmartRetryRef ref) async {
       throw Exception('Unknown error: $e');
     }
   }
-}
+});
 ```
 
 <div dir="rtl">
@@ -438,8 +442,8 @@ class RefreshablePage extends ConsumerWidget {
 </div>
 
 ```dart
-@riverpod
-Future<List<Product>> products(ProductsRef ref) async {
+// FutureProvider with fallback to cached data
+final productsProvider = FutureProvider<List<Product>>((ref) async {
   try {
     // Try to fetch from API
     return await api.getProducts();
@@ -456,7 +460,7 @@ Future<List<Product>> products(ProductsRef ref) async {
     // No cache available, rethrow error
     rethrow;
   }
-}
+});
 ```
 
 <div dir="rtl">
@@ -466,8 +470,8 @@ Future<List<Product>> products(ProductsRef ref) async {
 </div>
 
 ```dart
-@riverpod
-Future<DashboardData> dashboard(DashboardRef ref) async {
+// FutureProvider with partial success handling
+final dashboardProvider = FutureProvider<DashboardData>((ref) async {
   // Fetch multiple pieces of data
   final results = await Future.wait([
     api.getUser().catchError((e) => null),
@@ -480,7 +484,7 @@ Future<DashboardData> dashboard(DashboardRef ref) async {
     posts: results[1] as List<Post>,
     stats: results[2] as Stats,
   );
-}
+});
 
 // Widget shows what succeeded
 class DashboardPage extends ConsumerWidget {
@@ -518,8 +522,8 @@ class DashboardPage extends ConsumerWidget {
 </div>
 
 ```dart
-@riverpod
-class LiveData extends _$LiveData {
+// AsyncNotifier with polling and error handling
+class LiveDataNotifier extends AsyncNotifier<Data> {
   @override
   Future<Data> build() async {
     // Start polling
@@ -548,6 +552,10 @@ class LiveData extends _$LiveData {
     return await api.getData();
   }
 }
+
+final liveDataProvider = AsyncNotifierProvider<LiveDataNotifier, Data>(
+  () => LiveDataNotifier(),
+);
 
 // Widget shows error but keeps displaying data
 class LiveDataWidget extends ConsumerWidget {
@@ -583,8 +591,8 @@ class LiveDataWidget extends ConsumerWidget {
 </div>
 
 ```dart
-@riverpod
-class RegistrationForm extends _$RegistrationForm {
+// Notifier for form state management with error handling
+class RegistrationFormNotifier extends Notifier<FormState> {
   @override
   FormState build() {
     return FormState.idle();
@@ -627,6 +635,10 @@ class RegistrationForm extends _$RegistrationForm {
     }
   }
 }
+
+final registrationFormProvider = NotifierProvider<RegistrationFormNotifier, FormState>(
+  () => RegistrationFormNotifier(),
+);
 
 // State class
 sealed class FormState {
@@ -734,8 +746,8 @@ class RegistrationPage extends ConsumerWidget {
 </div>
 
 ```dart
-@riverpod
-Future<Uint8List> image(ImageRef ref, String url) async {
+// FutureProvider.family for image loading with retry
+final imageProvider = FutureProvider.family<Uint8List, String>((ref, url) async {
   var retries = 0;
   const maxRetries = 3;
 
@@ -760,7 +772,7 @@ Future<Uint8List> image(ImageRef ref, String url) async {
       await Future.delayed(Duration(seconds: math.pow(2, retries).toInt()));
     }
   }
-}
+});
 
 // Widget
 class NetworkImage extends ConsumerWidget {
