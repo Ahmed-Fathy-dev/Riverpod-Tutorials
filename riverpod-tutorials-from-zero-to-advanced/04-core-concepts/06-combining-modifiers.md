@@ -32,16 +32,17 @@
 
 ```dart
 // Family with AutoDispose (default behavior)
-@riverpod
-Future<User> user(UserRef ref, String userId) async {
-  print('Fetching user: $userId');
+final userProvider = FutureProvider.family.autoDispose<User, String>(
+  (ref, userId) async {
+    print('Fetching user: $userId');
 
-  ref.onDispose(() {
-    print('Disposing user provider for: $userId');
-  });
+    ref.onDispose(() {
+      print('Disposing user provider for: $userId');
+    });
 
-  return await api.getUser(userId);
-}
+    return await api.getUser(userId);
+  },
+);
 
 // Usage
 class UserProfile extends ConsumerWidget {
@@ -81,20 +82,18 @@ class UserProfile extends ConsumerWidget {
 
 ```dart
 // Perfect for search results
-@riverpod
-Future<List<Product>> searchResults(
-  SearchResultsRef ref,
-  String query,
-) async {
-  print('Searching for: $query');
+final searchResultsProvider = FutureProvider.family.autoDispose<List<Product>, String>(
+  (ref, query) async {
+    print('Searching for: $query');
 
-  ref.onDispose(() {
-    print('Disposing search results for: $query');
-  });
+    ref.onDispose(() {
+      print('Disposing search results for: $query');
+    });
 
-  // AutoDispose - disposed when not in use
-  return await api.search(query);
-}
+    // AutoDispose - disposed when not in use
+    return await api.search(query);
+  },
+);
 
 // Usage
 class SearchPage extends ConsumerStatefulWidget {
@@ -145,27 +144,25 @@ class _SearchPageState extends ConsumerState<SearchPage> {
 
 ```dart
 // Cache for limited time
-@riverpod
-Future<UserDetails> userDetails(
-  UserDetailsRef ref,
-  String userId,
-) async {
-  print('Fetching details for user: $userId');
+final userDetailsProvider = FutureProvider.family.autoDispose<UserDetails, String>(
+  (ref, userId) async {
+    print('Fetching details for user: $userId');
 
-  // Keep alive for 5 minutes
-  final link = ref.keepAlive();
+    // Keep alive for 5 minutes
+    final link = ref.keepAlive();
 
-  Timer(Duration(minutes: 5), () {
-    print('Cache expired for user: $userId');
-    link.close();
-  });
+    Timer(Duration(minutes: 5), () {
+      print('Cache expired for user: $userId');
+      link.close();
+    });
 
-  ref.onDispose(() {
-    print('Disposing user details for: $userId');
-  });
+    ref.onDispose(() {
+      print('Disposing user details for: $userId');
+    });
 
-  return await api.getUserDetails(userId);
-}
+    return await api.getUserDetails(userId);
+  },
+);
 
 // Multiple widgets can share cached data
 class UserProfile extends ConsumerWidget {
@@ -192,25 +189,23 @@ class UserProfile extends ConsumerWidget {
 </div>
 
 ```dart
-@riverpod
-Future<Article> article(
-  ArticleRef ref,
-  String articleId,
-) async {
-  final article = await api.getArticle(articleId);
+final articleProvider = FutureProvider.family.autoDispose<Article, String>(
+  (ref, articleId) async {
+    final article = await api.getArticle(articleId);
 
-  // Cache premium articles longer
-  if (article.isPremium) {
-    final link = ref.keepAlive();
-    Timer(Duration(hours: 1), link.close);
-  } else {
-    // Regular articles: shorter cache
-    final link = ref.keepAlive();
-    Timer(Duration(minutes: 10), link.close);
-  }
+    // Cache premium articles longer
+    if (article.isPremium) {
+      final link = ref.keepAlive();
+      Timer(Duration(hours: 1), link.close);
+    } else {
+      // Regular articles: shorter cache
+      final link = ref.keepAlive();
+      Timer(Duration(minutes: 10), link.close);
+    }
 
-  return article;
-}
+    return article;
+  },
+);
 ```
 
 <div dir="rtl">
@@ -222,16 +217,14 @@ Future<Article> article(
 </div>
 
 ```dart
-@riverpod
-Future<Category> category(
-  CategoryRef ref,
-  String categoryId,
-) async {
-  // Categories rarely change - keep permanently
-  ref.keepAlive();
+final categoryProvider = FutureProvider.family.autoDispose<Category, String>(
+  (ref, categoryId) async {
+    // Categories rarely change - keep permanently
+    ref.keepAlive();
 
-  return await api.getCategory(categoryId);
-}
+    return await api.getCategory(categoryId);
+  },
+);
 
 // Manual refresh when needed
 class CategoryManager extends ConsumerWidget {
@@ -260,30 +253,29 @@ class CategoryManager extends ConsumerWidget {
 
 ```dart
 // Cache each page separately
-@riverpod
-Future<Page<Product>> productsPage(
-  ProductsPageRef ref,
-  ({String category, int page}) params,
-) async {
-  print('Fetching page ${params.page} of ${params.category}');
+typedef PageParams = ({String category, int page});
 
-  // Keep pages cached for 10 minutes
-  final link = ref.keepAlive();
-  Timer(Duration(minutes: 10), link.close);
+final productsPageProvider = FutureProvider.family.autoDispose<Page<Product>, PageParams>(
+  (ref, params) async {
+    print('Fetching page ${params.page} of ${params.category}');
 
-  ref.onDispose(() {
-    print('Disposing page ${params.page}');
-  });
+    // Keep pages cached for 10 minutes
+    final link = ref.keepAlive();
+    Timer(Duration(minutes: 10), link.close);
 
-  return await api.getProducts(
-    category: params.category,
-    page: params.page,
-  );
-}
+    ref.onDispose(() {
+      print('Disposing page ${params.page}');
+    });
+
+    return await api.getProducts(
+      category: params.category,
+      page: params.page,
+    );
+  },
+);
 
 // Aggregated view provider
-@riverpod
-class ProductsList extends _$ProductsList {
+class ProductsListNotifier extends FamilyAsyncNotifier<List<Product>, String> {
   @override
   Future<List<Product>> build(String category) async {
     // Start with first page
@@ -308,6 +300,10 @@ class ProductsList extends _$ProductsList {
     state = AsyncData([...currentItems, ...pageData.items]);
   }
 }
+
+final productsListProvider = AsyncNotifierProvider.family<ProductsListNotifier, List<Product>, String>(
+  () => ProductsListNotifier(),
+);
 ```
 
 <div dir="rtl">
@@ -326,27 +322,24 @@ typedef Filters = ({
   bool? inStock,
 });
 
-@riverpod
-Future<List<Product>> filteredProducts(
-  FilteredProductsRef ref,
-  Filters filters,
-) async {
-  // Cache filtered results for 2 minutes
-  final link = ref.keepAlive();
-  Timer(Duration(minutes: 2), link.close);
+final filteredProductsProvider = FutureProvider.family.autoDispose<List<Product>, Filters>(
+  (ref, filters) async {
+    // Cache filtered results for 2 minutes
+    final link = ref.keepAlive();
+    Timer(Duration(minutes: 2), link.close);
 
-  return await api.getProducts(
-    category: filters.category,
-    minPrice: filters.minPrice,
-    maxPrice: filters.maxPrice,
-    brand: filters.brand,
-    inStock: filters.inStock,
-  );
-}
+    return await api.getProducts(
+      category: filters.category,
+      minPrice: filters.minPrice,
+      maxPrice: filters.maxPrice,
+      brand: filters.brand,
+      inStock: filters.inStock,
+    );
+  },
+);
 
 // Filter state management
-@riverpod
-class ProductFilters extends _$ProductFilters {
+class ProductFiltersNotifier extends Notifier<Filters> {
   @override
   Filters build() {
     return (
@@ -389,6 +382,10 @@ class ProductFilters extends _$ProductFilters {
   }
 }
 
+final productFiltersProvider = NotifierProvider<ProductFiltersNotifier, Filters>(
+  () => ProductFiltersNotifier(),
+);
+
 // Usage
 class ProductsPage extends ConsumerWidget {
   @override
@@ -420,47 +417,46 @@ class ProductsPage extends ConsumerWidget {
 
 ```dart
 // User provider
-@riverpod
-Future<User> user(UserRef ref, String userId) async {
+final userProvider = FutureProvider.family.autoDispose<User, String>((ref, userId) async {
   final link = ref.keepAlive();
   Timer(Duration(minutes: 30), link.close);
 
   return await api.getUser(userId);
-}
+});
 
 // User's posts (depends on user)
-@riverpod
-Future<List<Post>> userPosts(
-  UserPostsRef ref,
-  ({String userId, int page}) params,
-) async {
-  // Watch the user
-  final user = await ref.watch(userProvider(params.userId).future);
+typedef UserPostsParams = ({String userId, int page});
 
-  // Cache posts for 5 minutes
-  final link = ref.keepAlive();
-  Timer(Duration(minutes: 5), link.close);
+final userPostsProvider = FutureProvider.family.autoDispose<List<Post>, UserPostsParams>(
+  (ref, params) async {
+    // Watch the user
+    final user = await ref.watch(userProvider(params.userId).future);
 
-  return await api.getPosts(
-    userId: user.id,
-    page: params.page,
-  );
-}
+    // Cache posts for 5 minutes
+    final link = ref.keepAlive();
+    Timer(Duration(minutes: 5), link.close);
+
+    return await api.getPosts(
+      userId: user.id,
+      page: params.page,
+    );
+  },
+);
 
 // Post details (depends on user)
-@riverpod
-Future<PostDetails> postDetails(
-  PostDetailsRef ref,
-  ({String userId, String postId}) params,
-) async {
-  // Reuse cached user
-  final user = await ref.watch(userProvider(params.userId).future);
+typedef PostDetailsParams = ({String userId, String postId});
 
-  return await api.getPostDetails(
-    userId: user.id,
-    postId: params.postId,
-  );
-}
+final postDetailsProvider = FutureProvider.family.autoDispose<PostDetails, PostDetailsParams>(
+  (ref, params) async {
+    // Reuse cached user
+    final user = await ref.watch(userProvider(params.userId).future);
+
+    return await api.getPostDetails(
+      userId: user.id,
+      postId: params.postId,
+    );
+  },
+);
 
 // Usage creates an efficient dependency graph
 class UserPage extends ConsumerWidget {
@@ -502,8 +498,7 @@ class UserPage extends ConsumerWidget {
 
 ```dart
 // Prefetch next page
-@riverpod
-class ProductsPrefetcher extends _$ProductsPrefetcher {
+class ProductsPrefetcherNotifier extends Notifier<void> {
   @override
   void build() {
     // No state needed
@@ -521,6 +516,10 @@ class ProductsPrefetcher extends _$ProductsPrefetcher {
     );
   }
 }
+
+final productsPrefetcherProvider = NotifierProvider<ProductsPrefetcherNotifier, void>(
+  () => ProductsPrefetcherNotifier(),
+);
 
 // Usage in list
 class ProductList extends ConsumerWidget {
@@ -563,8 +562,7 @@ class ProductList extends ConsumerWidget {
 </div>
 
 ```dart
-@riverpod
-class CacheMonitor extends _$CacheMonitor {
+class CacheMonitorNotifier extends Notifier<int> {
   final Map<String, DateTime> _cacheEntries = {};
 
   @override
@@ -591,9 +589,12 @@ class CacheMonitor extends _$CacheMonitor {
   }
 }
 
+final cacheMonitorProvider = NotifierProvider<CacheMonitorNotifier, int>(
+  () => CacheMonitorNotifier(),
+);
+
 // Track in providers
-@riverpod
-Future<Data> trackedData(TrackedDataRef ref, String id) async {
+final trackedDataProvider = FutureProvider.family.autoDispose<Data, String>((ref, id) async {
   ref.read(cacheMonitorProvider.notifier).trackEntry('data_$id');
 
   ref.onDispose(() {
@@ -604,7 +605,7 @@ Future<Data> trackedData(TrackedDataRef ref, String id) async {
   Timer(Duration(minutes: 5), link.close);
 
   return await fetchData(id);
-}
+});
 ```
 
 <div dir="rtl">
@@ -615,8 +616,7 @@ Future<Data> trackedData(TrackedDataRef ref, String id) async {
 
 ```dart
 // Least Recently Used cache
-@riverpod
-class LruCache extends _$LruCache {
+class LruCacheNotifier extends Notifier<int> {
   final _cache = <String, (DateTime, dynamic)>{};
   final _maxSize = 100;
 
@@ -652,6 +652,10 @@ class LruCache extends _$LruCache {
     state = _cache.length;
   }
 }
+
+final lruCacheProvider = NotifierProvider<LruCacheNotifier, int>(
+  () => LruCacheNotifier(),
+);
 ```
 
 <div dir="rtl">
@@ -666,22 +670,20 @@ class LruCache extends _$LruCache {
 
 ```dart
 // ❌ WRONG - Unbounded cache growth
-@riverpod
-Future<Data> search(SearchRef ref, String query) async {
+final searchBadProvider = FutureProvider.family.autoDispose<Data, String>((ref, query) async {
   ref.keepAlive(); // Every search cached forever!
   return await api.search(query);
-}
+});
 
 // User types "f", "fl", "flu", "flut", "flutt", "flutte", "flutter"
 // = 7 cached instances that NEVER expire!
 
 // ✅ CORRECT - Timed expiration
-@riverpod
-Future<Data> search(SearchRef ref, String query) async {
+final searchGoodProvider = FutureProvider.family.autoDispose<Data, String>((ref, query) async {
   final link = ref.keepAlive();
   Timer(Duration(minutes: 2), link.close); // Cleanup old searches
   return await api.search(query);
-}
+});
 ```
 
 <div dir="rtl">
@@ -699,11 +701,10 @@ class MutableFilter {
   MutableFilter(this.category, this.price);
 }
 
-@riverpod
-List<Product> filtered(FilteredRef ref, MutableFilter filter) {
+final filteredBadProvider = Provider.family<List<Product>, MutableFilter>((ref, filter) {
   // Dangerous! filter can change
   return [];
-}
+});
 
 // ✅ CORRECT - Immutable parameter
 class ImmutableFilter {
@@ -740,12 +741,11 @@ class Params {
   // Missing == and hashCode
 }
 
-@riverpod
-Future<Data> data(DataRef ref, Params params) async {
+final dataBadProvider = FutureProvider.family<Data, Params>((ref, params) async {
   // Params(id: '1', version: 1) != Params(id: '1', version: 1)
   // Creates duplicate providers!
   return await fetchData(params);
-}
+});
 
 // ✅ CORRECT - With equality
 class Params {
@@ -778,27 +778,24 @@ class Params {
 
 ```dart
 // Search: Short-lived
-@riverpod
-Future<List<Product>> search(SearchRef ref, String query) async {
+final searchProvider2 = FutureProvider.family.autoDispose<List<Product>, String>((ref, query) async {
   final link = ref.keepAlive();
   Timer(Duration(minutes: 2), link.close);
   return await api.search(query);
-}
+});
 
 // User data: Medium-lived
-@riverpod
-Future<User> user(UserRef ref, String id) async {
+final userProvider2 = FutureProvider.family.autoDispose<User, String>((ref, id) async {
   final link = ref.keepAlive();
   Timer(Duration(minutes: 30), link.close);
   return await api.getUser(id);
-}
+});
 
 // Reference data: Long-lived
-@riverpod
-Future<Category> category(CategoryRef ref, String id) async {
+final categoryProvider2 = FutureProvider.family.autoDispose<Category, String>((ref, id) async {
   ref.keepAlive(); // Permanent
   return await api.getCategory(id);
-}
+});
 ```
 
 <div dir="rtl">
@@ -809,20 +806,20 @@ Future<Category> category(CategoryRef ref, String id) async {
 
 ```dart
 // ✅ Good: Clear and type-safe
-@riverpod
-Future<Data> data(
-  DataRef ref,
-  ({String id, int version, String? locale}) params,
-) async {
-  return await api.getData(
-    id: params.id,
-    version: params.version,
-    locale: params.locale,
-  );
-}
+typedef DataParams = ({String id, int version, String? locale});
+
+final dataProvider2 = FutureProvider.family.autoDispose<Data, DataParams>(
+  (ref, params) async {
+    return await api.getData(
+      id: params.id,
+      version: params.version,
+      locale: params.locale,
+    );
+  },
+);
 
 // Usage is self-documenting
-ref.watch(dataProvider((
+ref.watch(dataProvider2((
   id: '123',
   version: 2,
   locale: 'en',
@@ -836,8 +833,7 @@ ref.watch(dataProvider((
 </div>
 
 ```dart
-@riverpod
-Future<Data> monitoredData(MonitoredDataRef ref, String id) async {
+final monitoredDataProvider = FutureProvider.family.autoDispose<Data, String>((ref, id) async {
   if (kDebugMode) {
     print('Creating provider for: $id');
     ref.onDispose(() => print('Disposing provider for: $id'));
@@ -847,7 +843,7 @@ Future<Data> monitoredData(MonitoredDataRef ref, String id) async {
   Timer(Duration(minutes: 5), link.close);
 
   return await fetchData(id);
-}
+});
 ```
 
 <div dir="rtl">
