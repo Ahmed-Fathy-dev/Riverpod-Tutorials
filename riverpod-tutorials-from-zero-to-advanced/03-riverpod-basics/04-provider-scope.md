@@ -224,13 +224,14 @@ class MyApp extends StatelessWidget {
 
 ```dart
 // Original provider
-@riverpod
-class Counter extends _$Counter {
+class Counter extends Notifier<int> {
   @override
   int build() => 0;
 
   void increment() => state++;
 }
+
+final counterProvider = NotifierProvider<Counter, int>(() => Counter());
 
 // Test with override
 void main() {
@@ -256,24 +257,16 @@ void main() {
 </div>
 
 ```dart
-// Real API service
-@riverpod
-class ApiService extends _$ApiService {
-  @override
-  ApiService build() {
-    return RealApiService();
-  }
-}
+// Real API service - using Provider for services
+final apiServiceProvider = Provider<ApiService>((ref) {
+  return RealApiService();
+});
 
-// User repository depends on API
-@riverpod
-class UserRepository extends _$UserRepository {
-  @override
-  UserRepository build() {
-    final api = ref.watch(apiServiceProvider);
-    return UserRepository(api);
-  }
-}
+// User repository depends on API - using Provider
+final userRepositoryProvider = Provider<UserRepository>((ref) {
+  final api = ref.watch(apiServiceProvider);
+  return UserRepository(api);
+});
 
 // Test with mock
 void main() {
