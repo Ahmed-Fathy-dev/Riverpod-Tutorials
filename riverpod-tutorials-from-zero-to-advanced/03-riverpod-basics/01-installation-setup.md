@@ -8,176 +8,63 @@
 
 في الملف ده هنتكلم عن:
 - إزاي تثبت Riverpod في مشروعك
-- الـ packages المختلفة ومتى تستخدم كل واحد
-- إعداد Code Generation (اختياري لكن موصى به)
-- أول setup للتطبيق
+- الـ package الأساسي (flutter_riverpod)
+- إعداد أول تطبيق Riverpod
+- أدوات مساعدة (Linting)
 
 ## 🎯 الهدف
 
 بعد ما تخلص القراءة، هتقدر:
-- تثبت Riverpod في أي مشروع
-- تختار الـ package المناسب
-- تعد Code Generation
+- تثبت Riverpod في أي مشروع Flutter
+- تعد الـ setup الأساسي
 - تجهز تطبيقك لاستخدام Riverpod
+- تستخدم أدوات المساعدة المتاحة
 
 ---
 
-## 📦 الـ Packages المتاحة
+## 📦 Package المطلوب
 
-حل Riverpod عنده 3 packages رئيسية:
+في Section ده، هنستخدم **Classic Syntax** اللي بيعتمد على package واحد بس:
 
-### 1. flutter_riverpod (الأساسي - مطلوب دائماً)
+### flutter_riverpod (الأساسي)
 
-**الاستخدام:** كل مشروع Flutter
-
-</div>
-
-```yaml
-dependencies:
-  flutter_riverpod: ^2.5.0
-```
-
-<div dir="rtl">
+ده Package الأساسي اللي بيحتوي على كل حاجة محتاجها:
 
 **يحتوي على:**
+- كل الـ Providers (Provider, StateProvider, FutureProvider, StreamProvider, NotifierProvider)
+- ConsumerWidget & Consumer
+- ref object (للوصول للـ providers)
+- ProviderScope
 - كل الـ core functionality
-- Providers بكل أنواعهم
-- ConsumerWidget
-- ref object
 
-**متى تستخدمه:** دايماً! ده الـ package الأساسي.
-
-### 2. riverpod_annotation + riverpod_generator (Code Generation)
-
-**الاستخدام:** موصى به بشدة لـ Riverpod 3
-
-</div>
-
-```yaml
-dependencies:
-  flutter_riverpod: ^2.5.0
-  riverpod_annotation: ^2.3.0
-
-dev_dependencies:
-  riverpod_generator: ^2.4.0
-  build_runner: ^2.4.0
-  custom_lint: ^0.6.0
-  riverpod_lint: ^2.3.0
-```
-
-<div dir="rtl">
-
-**يحتوي على:**
-- Annotations (@riverpod)
-- Code generator
-- Less boilerplate
-- Better type safety
-
-**متى تستخدمه:** في كل المشاريع الجديدة (Riverpod 3 style)
-
-### 3. hooks_riverpod (Advanced - اختياري)
-
-**الاستخدام:** لو عايز تستخدم Flutter Hooks
-
-</div>
-
-```yaml
-dependencies:
-  hooks_riverpod: ^2.5.0
-  flutter_hooks: ^0.20.0
-```
-
-<div dir="rtl">
-
-**يحتوي على:**
-- كل حاجة في flutter_riverpod
-- Integration مع Flutter Hooks
-- HookConsumerWidget
-
-**متى تستخدمه:** لو محتاج Flutter Hooks (advanced users)
+**ملحوظة:** في Section 06 هنتعلم طريقة تانية باستخدام Code Generation، لكن دلوقتي هنركز على الأساسيات.
 
 ---
 
-## 🚀 Setup خطوة بخطوة
+## 🛠️ التثبيت - خطوة بخطوة
 
-### الطريقة 1: Basic Setup (بدون Code Generation)
+### الخطوة 1: افتح pubspec.yaml
 
-مناسبة للمبتدئين أو المشاريع الصغيرة جداً.
-
-#### الخطوة 1: أضف الـ dependency
-
-</div>
-
-```yaml
-# pubspec.yaml
-name: my_app
-description: My Riverpod app
-
-environment:
-  sdk: '>=3.0.0 <4.0.0'
-
-dependencies:
-  flutter:
-    sdk: flutter
-  flutter_riverpod: ^2.5.0
-```
-
-<div dir="rtl">
-
-#### الخطوة 2: Install
+في مشروع Flutter الموجود (أو اعمل مشروع جديد):
 
 </div>
 
 ```bash
-flutter pub get
+flutter create my_riverpod_app
+cd my_riverpod_app
 ```
 
 <div dir="rtl">
 
-#### الخطوة 3: Wrap app مع ProviderScope
+### الخطوة 2: ضيف flutter_riverpod
 
-</div>
-
-```dart
-import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-
-void main() {
-  runApp(
-    // Wrap entire app
-    ProviderScope(
-      child: MyApp(),
-    ),
-  );
-}
-
-class MyApp extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Riverpod App',
-      home: HomePage(),
-    );
-  }
-}
-```
-
-<div dir="rtl">
-
-**خلاص! Ready to use** ✅
-
-### الطريقة 2: مع Code Generation (موصى به)
-
-مناسبة لكل المشاريع - أقل boilerplate وأكثر type safety.
-
-#### الخطوة 1: أضف Dependencies
+افتح ملف `pubspec.yaml` وضيف Riverpod:
 
 </div>
 
 ```yaml
-# pubspec.yaml
-name: my_app
-description: My Riverpod 3 app
+name: my_riverpod_app
+description: Learning Riverpod
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
@@ -186,26 +73,22 @@ dependencies:
   flutter:
     sdk: flutter
 
-  # Riverpod
-  flutter_riverpod: ^2.5.0
-  riverpod_annotation: ^2.3.0
+  # Riverpod - State management
+  flutter_riverpod: ^3.0.0
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
+  flutter_lints: ^3.0.0
 
-  # Code generation
-  riverpod_generator: ^2.4.0
-  build_runner: ^2.4.0
-
-  # Linting (optional but recommended)
+  # Optional but recommended - Riverpod linting
   custom_lint: ^0.6.0
-  riverpod_lint: ^2.3.0
+  riverpod_lint: ^3.0.0
 ```
 
 <div dir="rtl">
 
-#### الخطوة 2: Install
+### الخطوة 3: حمّل الـ packages
 
 </div>
 
@@ -215,29 +98,18 @@ flutter pub get
 
 <div dir="rtl">
 
-#### الخطوة 3: إعداد analysis_options.yaml (اختياري)
+**ملحوظة:** لو حصل error في التثبيت، تأكد من:
+- Flutter SDK محدّث (`flutter upgrade`)
+- pubspec.yaml مكتوب صح (الـ indentation مهم!)
+- الإنترنت متصل
 
-</div>
+---
 
-```yaml
-# analysis_options.yaml
-include: package:flutter_lints/flutter.yaml
+## 🎬 أول Setup
 
-analyzer:
-  plugins:
-    - custom_lint
+بعد ما ثبتّ Riverpod، خلينا نعمل أول setup:
 
-linter:
-  rules:
-    # Recommended rules
-    avoid_print: true
-    prefer_const_constructors: true
-    prefer_const_literals_to_create_immutables: true
-```
-
-<div dir="rtl">
-
-#### الخطوة 4: Setup main.dart
+### الخطوة 1: افتح lib/main.dart
 
 </div>
 
@@ -245,332 +117,71 @@ linter:
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+// Simple counter provider
+final counterProvider = StateProvider<int>((ref) => 0);
+
 void main() {
   runApp(
-    ProviderScope(
+    // Wrap your app with ProviderScope
+    // This is REQUIRED for Riverpod to work
+    const ProviderScope(
       child: MyApp(),
     ),
   );
 }
 
 class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Riverpod 3 App',
+      title: 'Riverpod Demo',
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
+        primarySwatch: Colors.blue,
         useMaterial3: true,
       ),
-      home: HomePage(),
+      home: const HomePage(),
     );
   }
 }
 
 class HomePage extends ConsumerWidget {
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('Riverpod App'),
-      ),
-      body: Center(
-        child: Text('Ready to go!'),
-      ),
-    );
-  }
-}
-```
+  const HomePage({super.key});
 
-<div dir="rtl">
-
-#### الخطوة 5: أول Provider باستخدام Code Generation
-
-</div>
-
-```dart
-// lib/providers/counter_provider.dart
-import 'package:riverpod_annotation/riverpod_annotation.dart';
-
-// This is required for code generation
-part 'counter_provider.g.dart';
-
-@riverpod
-class Counter extends _$Counter {
-  @override
-  int build() {
-    return 0; // Initial value
-  }
-
-  void increment() {
-    state++;
-  }
-
-  void decrement() {
-    state--;
-  }
-}
-```
-
-<div dir="rtl">
-
-#### الخطوة 6: Generate Code
-
-</div>
-
-```bash
-# One-time generation
-flutter pub run build_runner build
-
-# Watch mode (recommended during development)
-flutter pub run build_runner watch
-
-# Clean and rebuild
-flutter pub run build_runner build --delete-conflicting-outputs
-```
-
-<div dir="rtl">
-
-**الآن ready للاستخدام!** ✅
-
----
-
-## 🔧 Build Runner Commands
-
-خليني أفصلهالك:
-
-### أمر 1: build (بناء لمرة واحدة)
-
-</div>
-
-```bash
-flutter pub run build_runner build
-```
-
-<div dir="rtl">
-
-**متى تستخدمه:**
-- أول مرة بعد إضافة providers جديدة
-- قبل الـ commit في git
-- قبل الـ production build
-
-### أمر 2: watch (المراقبة المستمرة)
-
-</div>
-
-```bash
-flutter pub run build_runner watch
-```
-
-<div dir="rtl">
-
-**متى تستخدمه:**
-- أثناء الـ development
-- بيراقب التغييرات ويعمل generate تلقائياً
-- أفضل تجربة developer
-
-**نصيحة:** شغله في terminal منفصل وخليه شغال طول الوقت.
-
-### أمر 3: build مع delete-conflicting-outputs
-
-</div>
-
-```bash
-flutter pub run build_runner build --delete-conflicting-outputs
-```
-
-<div dir="rtl">
-
-**متى تستخدمه:**
-- لو حصلت conflicts في الـ generated files
-- بعد تغييرات كبيرة في الكود
-- لما build العادي يفشل
-
----
-
-## 📁 هيكل المشروع الموصى به
-
-</div>
-
-```
-my_app/
-├── lib/
-│   ├── main.dart
-│   ├── app.dart
-│   │
-│   ├── features/
-│   │   ├── auth/
-│   │   │   ├── providers/
-│   │   │   │   ├── auth_provider.dart
-│   │   │   │   └── auth_provider.g.dart  # Generated
-│   │   │   ├── screens/
-│   │   │   │   └── login_page.dart
-│   │   │   └── models/
-│   │   │       └── user.dart
-│   │   │
-│   │   └── home/
-│   │       ├── providers/
-│   │       ├── screens/
-│   │       └── widgets/
-│   │
-│   ├── shared/
-│   │   ├── providers/
-│   │   │   ├── theme_provider.dart
-│   │   │   └── locale_provider.dart
-│   │   └── widgets/
-│   │
-│   └── core/
-│       ├── services/
-│       ├── repositories/
-│       └── models/
-│
-├── test/
-│   └── providers/
-│       └── auth_provider_test.dart
-│
-└── pubspec.yaml
-```
-
-<div dir="rtl">
-
----
-
-## ⚙️ إعدادات إضافية (Optional)
-
-### 1. Git: تجاهل Generated Files
-
-</div>
-
-```gitignore
-# .gitignore
-
-# Generated files
-*.g.dart
-*.freezed.dart
-
-# Build
-build/
-.dart_tool/
-```
-
-<div dir="rtl">
-
-**ملاحظة:** بعض الناس بيفضلوا يعملوا commit للـ generated files. الاختيار ليك.
-
-**الموصى به:** متعملش commit عشان:
-- بيتغيروا كتير
-- Git diffs بتبقى كبيرة
-- كل developer يقدر يعملهم generate
-
-### 2: VS Code Extensions
-
-</div>
-
-```json
-// .vscode/extensions.json
-{
-  "recommendations": [
-    "Dart-Code.dart-code",
-    "Dart-Code.flutter",
-    "usernamehw.errorlens"
-  ]
-}
-```
-
-<div dir="rtl">
-
-### 3. Analysis Options المتقدمة
-
-</div>
-
-```yaml
-# analysis_options.yaml
-include: package:flutter_lints/flutter.yaml
-
-analyzer:
-  plugins:
-    - custom_lint
-
-  errors:
-    # Make riverpod_lint warnings into errors
-    riverpod_unsynchronized_generator: error
-    provider_dependencies: error
-
-  exclude:
-    - "**/*.g.dart"
-    - "**/*.freezed.dart"
-
-linter:
-  rules:
-    # Riverpod specific
-    avoid_public_notifier_properties: true
-
-    # General good practices
-    prefer_const_constructors: true
-    prefer_const_literals_to_create_immutables: true
-    avoid_print: true
-    sized_box_for_whitespace: true
-```
-
-<div dir="rtl">
-
----
-
-## ✅ Verification (تأكد إن كل حاجة شغالة)
-
-### اختبار 1: Counter App بسيط
-
-</div>
-
-```dart
-// lib/main.dart
-import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:riverpod_annotation/riverpod_annotation.dart';
-
-part 'main.g.dart';
-
-@riverpod
-class Counter extends _$Counter {
-  @override
-  int build() => 0;
-
-  void increment() => state++;
-}
-
-void main() {
-  runApp(
-    ProviderScope(
-      child: MyApp(),
-    ),
-  );
-}
-
-class MyApp extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      home: CounterPage(),
-    );
-  }
-}
-
-class CounterPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final count = ref.watch(counterProvider);
 
     return Scaffold(
-      appBar: AppBar(title: Text('Counter')),
+      appBar: AppBar(
+        title: const Text('Riverpod Counter'),
+      ),
       body: Center(
-        child: Text(
-          '$count',
-          style: TextStyle(fontSize: 48),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Text(
+              'You have pushed the button this many times:',
+              style: TextStyle(fontSize: 16),
+            ),
+            const SizedBox(height: 20),
+            Text(
+              '$count',
+              style: const TextStyle(
+                fontSize: 48,
+                fontWeight: FontWeight.bold,
+                color: Colors.blue,
+              ),
+            ),
+          ],
         ),
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () => ref.read(counterProvider.notifier).increment(),
-        child: Icon(Icons.add),
+        onPressed: () {
+          ref.read(counterProvider.notifier).state++;
+        },
+        child: const Icon(Icons.add),
       ),
     );
   }
@@ -579,109 +190,32 @@ class CounterPage extends ConsumerWidget {
 
 <div dir="rtl">
 
-### اختبار 2: Run
+### الخطوة 2: شغّل التطبيق
 
 </div>
 
 ```bash
-# 1. Generate code
-flutter pub run build_runner build
-
-# 2. Run app
 flutter run
 ```
 
 <div dir="rtl">
 
-**لو التطبيق اشتغل والـ counter بيزيد - Setup ناجح! ✅**
+**لو كل حاجة تمام،** هتشوف تطبيق counter بسيط شغال! 🎉
 
 ---
 
-## ⚠️ مشاكل شائعة والحلول
+## 🔍 فهم الـ Setup
 
-### مشكلة 1: part directive مش موجود
+خليني أشرحلك كل جزء:
 
-</div>
-
-```
-Error: Part directive missing
-```
-
-<div dir="rtl">
-
-**الحل:**
-
-</div>
-
-```dart
-// Add this line at top of file
-part 'filename.g.dart';
-
-// Example
-part 'counter_provider.g.dart';
-```
-
-<div dir="rtl">
-
-### مشكلة 2: Generated file مش موجود
-
-</div>
-
-```
-Error: main.g.dart not found
-```
-
-<div dir="rtl">
-
-**الحل:**
-
-</div>
-
-```bash
-# Run build runner
-flutter pub run build_runner build
-```
-
-<div dir="rtl">
-
-### مشكلة 3: Conflicting outputs
-
-</div>
-
-```
-Error: Conflicting outputs
-```
-
-<div dir="rtl">
-
-**الحل:**
-
-</div>
-
-```bash
-flutter pub run build_runner build --delete-conflicting-outputs
-```
-
-<div dir="rtl">
-
-### مشكلة 4: ProviderScope مش موجود
-
-</div>
-
-```
-Error: ProviderScope not wrapped
-```
-
-<div dir="rtl">
-
-**الحل:**
+### 1. ProviderScope
 
 </div>
 
 ```dart
 void main() {
   runApp(
-    ProviderScope( // Don't forget this!
+    const ProviderScope(  // ← REQUIRED!
       child: MyApp(),
     ),
   );
@@ -690,50 +224,451 @@ void main() {
 
 <div dir="rtl">
 
+**إيه ده؟**
+- `ProviderScope` هو الـ root container لكل الـ providers
+- **لازم** يكون wrapper للـ app كله
+- بدونه، الـ providers مش هتشتغل
+
+**فين مكانه؟**
+- في الـ `main()` function
+- wrapper للـ `MaterialApp` أو `CupertinoApp`
+
+**ممكن يكون أكتر من واحد؟**
+- أيوه! ممكن تعمل nested ProviderScopes لـ testing أو لـ override providers
+- بس في الأغلب، واحد كفاية
+
+### 2. Provider Definition
+
+</div>
+
+```dart
+final counterProvider = StateProvider<int>((ref) => 0);
+```
+
+<div dir="rtl">
+
+**إيه ده؟**
+- `StateProvider` للـ state البسيط اللي بيتغير
+- `<int>` → نوع الـ state (عدد صحيح)
+- `(ref) => 0` → القيمة الأولية (Initial value)
+
+**فين مكانه؟**
+- في الـ global scope (خارج أي class)
+- أو في ملف منفصل في `lib/providers/`
+
+### 3. ConsumerWidget
+
+</div>
+
+```dart
+class HomePage extends ConsumerWidget {  // ← استخدم ConsumerWidget بدل StatelessWidget
+  const HomePage({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {  // ← ref parameter
+    final count = ref.watch(counterProvider);  // ← قراءة الـ provider
+    // ...
+  }
+}
+```
+
+<div dir="rtl">
+
+**إيه ده؟**
+- `ConsumerWidget` بدل `StatelessWidget`
+- بيديك `ref` في الـ build method
+- بيعمل rebuild تلقائي لما الـ provider يتغير
+
+**البدائل:**
+- `Consumer` widget → لو مش عايز تحول الـ class كله
+- `ConsumerStatefulWidget` → لو محتاج StatefulWidget
+
+### 4. ref.watch vs ref.read
+
+</div>
+
+```dart
+// Watch: للقراءة + rebuild تلقائي
+final count = ref.watch(counterProvider);
+
+// Read: للقراءة/التعديل مرة واحدة (في event handlers)
+ref.read(counterProvider.notifier).state++;
+```
+
+<div dir="rtl">
+
+**الفرق:**
+- **`watch`**: بيعمل rebuild للـ widget لما القيمة تتغير
+- **`read`**: بيقرأ القيمة مرة واحدة بدون rebuild
+
+**متى تستخدم إيه؟**
+- في `build` method → `watch`
+- في button handlers → `read`
+- في `initState` أو callbacks → `read`
+
 ---
 
-## 📊 ملخص: أي Setup أختار؟
+## 🔧 Optional Tools (موصى بها)
 
-| السيناريو | Setup الموصى به |
-|-----------|------------------|
-| **مبتدئ تماماً** | Basic (بدون codegen) |
-| **مشروع جديد** | مع Code Generation ✅ |
-| **مشروع كبير** | مع Code Generation ✅ |
-| **Solo developer** | مع Code Generation ✅ |
-| **Team project** | مع Code Generation ✅ |
-| **Prototype سريع** | Basic (بدون codegen) |
+### 1. Riverpod Lint (تحذيرات مفيدة)
 
-**التوصية العامة:** استخدم Code Generation إلا لو:
-- بتتعلم Riverpod لأول مرة (ابدأ basic)
-- Demo سريع جداً (< ساعة)
+الـ `riverpod_lint` package بيديك warnings لو استخدمت Riverpod غلط.
+
+**التثبيت:**
+
+</div>
+
+```yaml
+dev_dependencies:
+  custom_lint: ^0.6.0
+  riverpod_lint: ^3.0.0
+```
+
+<div dir="rtl">
+
+**الإعداد:** اعمل ملف `analysis_options.yaml`:
+
+</div>
+
+```yaml
+analyzer:
+  plugins:
+    - custom_lint
+```
+
+<div dir="rtl">
+
+**أمثلة للـ warnings:**
+- استخدمت `ref.watch` في event handler ← warning (استخدم `read`)
+- استخدمت `ref.read` في `build` ← warning (استخدم `watch`)
+- نسيت `ProviderScope` ← error
+
+### 2. VS Code Extensions (اختياري)
+
+**Flutter Riverpod Snippets:**
+- Shortcuts للكود المتكرر
+- مثال: `riverpod` → يعمل provider template
+
+**كيفية التثبيت:**
+1. افتح VS Code
+2. Extensions (Ctrl+Shift+X)
+3. ابحث عن "Flutter Riverpod Snippets"
+4. Install
+
+---
+
+## 📁 تنظيم المشروع
+
+للمشاريع الكبيرة، نظم الكود كده:
+
+</div>
+
+```
+lib/
+├── main.dart
+├── providers/
+│   ├── auth_provider.dart
+│   ├── user_provider.dart
+│   └── todos_provider.dart
+├── models/
+│   ├── user.dart
+│   └── todo.dart
+├── screens/
+│   ├── home_screen.dart
+│   ├── profile_screen.dart
+│   └── todos_screen.dart
+└── widgets/
+    ├── todo_item.dart
+    └── user_card.dart
+```
+
+<div dir="rtl">
+
+**مثال:** ملف `providers/auth_provider.dart`
+
+</div>
+
+```dart
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../models/user.dart';
+
+// Auth token
+final authTokenProvider = StateProvider<String?>((ref) => null);
+
+// Current user (depends on authToken)
+final currentUserProvider = FutureProvider<User?>((ref) async {
+  final token = ref.watch(authTokenProvider);
+
+  if (token == null) {
+    return null;
+  }
+
+  // Fetch user with token
+  return await api.getUserWithToken(token);
+});
+
+// Is user logged in?
+final isLoggedInProvider = Provider<bool>((ref) {
+  final token = ref.watch(authTokenProvider);
+  return token != null;
+});
+```
+
+<div dir="rtl">
+
+**استخدامه:**
+
+</div>
+
+```dart
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../providers/auth_provider.dart';
+
+class ProfileScreen extends ConsumerWidget {
+  const ProfileScreen({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final userAsync = ref.watch(currentUserProvider);
+
+    return userAsync.when(
+      data: (user) {
+        if (user == null) {
+          return const Text('Please login');
+        }
+        return Text('Hello ${user.name}');
+      },
+      loading: () => const CircularProgressIndicator(),
+      error: (error, stack) => Text('Error: $error'),
+    );
+  }
+}
+```
+
+<div dir="rtl">
+
+---
+
+## ⚠️ مشاكل شائعة والحلول
+
+### مشكلة 1: "Could not find the correct Provider"
+
+**السبب:** نسيت تحط `ProviderScope` في الـ main
+
+**الحل:**
+
+</div>
+
+```dart
+void main() {
+  runApp(
+    const ProviderScope(  // Don't forget this!
+      child: MyApp(),
+    ),
+  );
+}
+```
+
+<div dir="rtl">
+
+### مشكلة 2: "The argument type 'WidgetRef' can't be assigned"
+
+**السبب:** استخدمت `StatelessWidget` بدل `ConsumerWidget`
+
+**الحل:**
+
+</div>
+
+```dart
+// ✅ Correct
+class MyWidget extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    // ref is available here
+  }
+}
+
+// ❌ Wrong
+class MyWidget extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    // No ref!
+  }
+}
+```
+
+<div dir="rtl">
+
+### مشكلة 3: "Version solving failed"
+
+**السبب:** conflict في الـ versions
+
+**الحل:**
+
+</div>
+
+```bash
+# Clean the project
+flutter clean
+
+# Remove pubspec.lock
+rm pubspec.lock
+
+# Get packages again
+flutter pub get
+```
+
+<div dir="rtl">
+
+### مشكلة 4: UI مش بتتحدث
+
+**السبب:** استخدمت `ref.read` بدل `ref.watch` في `build`
+
+**الحل:**
+
+</div>
+
+```dart
+@override
+Widget build(BuildContext context, WidgetRef ref) {
+  // ✅ Correct: rebuilds when value changes
+  final count = ref.watch(counterProvider);
+
+  // ❌ Wrong: doesn't rebuild
+  final count = ref.read(counterProvider);
+
+  return Text('$count');
+}
+```
+
+<div dir="rtl">
+
+---
+
+## 💡 Best Practices
+
+### 1. استخدم final للـ providers
+
+</div>
+
+```dart
+// ✅ GOOD: final
+final counterProvider = StateProvider<int>((ref) => 0);
+
+// ❌ BAD: var or no modifier
+var counterProvider = StateProvider<int>((ref) => 0);
+```
+
+<div dir="rtl">
+
+### 2. Naming convention واضح
+
+</div>
+
+```dart
+// ✅ GOOD: descriptive with 'Provider' suffix
+final currentUserProvider = FutureProvider<User>(...)
+final authTokenProvider = StateProvider<String?>(...)
+final todosListProvider = NotifierProvider<TodosNotifier, List<Todo>>(...)
+
+// ❌ BAD: unclear names
+final user = FutureProvider<User>(...)
+final token = StateProvider<String?>(...)
+final data = NotifierProvider<TodosNotifier, List<Todo>>(...)
+```
+
+<div dir="rtl">
+
+### 3. نظم الـ providers في ملفات منفصلة
+
+</div>
+
+```dart
+// ✅ GOOD: organized
+lib/
+  providers/
+    auth_provider.dart
+    user_provider.dart
+    todos_provider.dart
+
+// ❌ BAD: everything in main.dart
+lib/
+  main.dart  (2000 lines!)
+```
+
+<div dir="rtl">
+
+### 4. استخدم const constructors
+
+</div>
+
+```dart
+// ✅ GOOD: const
+const ProviderScope(child: MyApp())
+const ConsumerWidget(...)
+
+// ❌ BAD: missing const
+ProviderScope(child: MyApp())
+ConsumerWidget(...)
+```
+
+<div dir="rtl">
+
+---
+
+## 📝 ملخص
+
+**خطوات التثبيت:**
+1. ضيف `flutter_riverpod: ^3.0.0` في pubspec.yaml
+2. نفذ `flutter pub get`
+3. لف الـ app بـ `ProviderScope` في `main()`
+4. استخدم `ConsumerWidget` للوصول للـ providers
+5. استخدم `ref.watch` في build و `ref.read` في events
+
+**المكونات الأساسية:**
+- **ProviderScope**: الـ root container (required)
+- **ConsumerWidget**: للوصول لـ `ref`
+- **ref.watch()**: قراءة + rebuild
+- **ref.read()**: قراءة مرة واحدة
+
+**Optional tools:**
+- `riverpod_lint`: تحذيرات مفيدة
+- VS Code extensions: snippets
+
+**Best practices:**
+- استخدم `final` للـ providers
+- naming convention واضح
+- نظم في ملفات منفصلة
+- استخدم `const` constructors
 
 ---
 
 ## 🔗 الخطوة الجاية
 
-دلوقتي بعد ما Setup خلص، وقت:
-- **أول Provider ليك** (الملف الجاي)
-- **إزاي تقرأ Providers**
-- **ProviderScope بالتفصيل**
+دلوقتي بعد ما ثبتّ Riverpod وعملت أول setup:
+- روح على `02-first-provider.md` عشان تتعلم إزاي تعمل providers
+
+**ملحوظة:** في Section 06 هنتعلم **Code Generation** - طريقة أحدث وأسهل للكتابة. لكن دلوقتي هنتعلم الأساسيات بالـ Classic Syntax الأول.
 
 ---
 
 ## 📚 المصادر
 
-- [Riverpod Installation](https://riverpod.dev/docs/introduction/getting_started)
-- [Code Generation Setup](https://riverpod.dev/docs/concepts/about_code_generation)
-- [Build Runner](https://pub.dev/packages/build_runner)
+- [Riverpod Official Documentation](https://riverpod.dev)
+- [Getting Started Guide](https://riverpod.dev/docs/introduction/getting_started)
+- [flutter_riverpod package](https://pub.dev/packages/flutter_riverpod)
+- [riverpod_lint package](https://pub.dev/packages/riverpod_lint)
 
 ---
 
 ## ✅ Checklist
 
-- [ ] ثبّت flutter_riverpod
-- [ ] (Optional) ثبّت riverpod_generator + build_runner
-- [ ] لفّيت الـ app بـ ProviderScope
-- [ ] جربت Counter example
-- [ ] كل حاجة شغالة
+قبل ما تكمل، تأكد من:
 
-**جاهز لأول Provider؟** 🎯
+- [ ] ثبّت `flutter_riverpod`
+- [ ] لفيت الـ app بـ `ProviderScope`
+- [ ] جربت Counter example وشغال
+- [ ] (Optional) ثبّت `riverpod_lint`
+- [ ] فهمت الفرق بين `watch` و `read`
 
 </div>
