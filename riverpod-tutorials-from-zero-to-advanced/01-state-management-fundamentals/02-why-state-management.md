@@ -360,35 +360,36 @@ class _LoginScreenState extends State<LoginScreen> {
 </div>
 
 ```dart
-// ✅ Solution: Separate business logic from UI
+// ✅ Solution: Separate business logic from UI with State Management
 
-// Business logic in provider
-class CartNotifier extends StateNotifier<List<CartItem>> {
-  CartNotifier() : super([]);
+// Business logic in separate controller class
+class CartController {
+  List<CartItem> items = [];
 
   void addItem(CartItem item) {
-    state = [...state, item];
+    items = [...items, item];
+    notifyStateChanged(); // State management handles this
   }
 
   void removeItem(String id) {
-    state = state.where((item) => item.id != id).toList();
+    items = items.where((item) => item.id != id).toList();
+    notifyStateChanged();
   }
 
-  int get itemCount => state.length;
-  double get totalPrice => state.fold(0, (sum, item) => sum + item.price);
+  int get itemCount => items.length;
+  double get totalPrice => items.fold(0, (sum, item) => sum + item.price);
 }
 
-// UI only displays
-class ProductCard extends ConsumerWidget {
+// UI only displays (no business logic)
+class ProductCard extends StatelessWidget {
   final Product product;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     return ElevatedButton(
       onPressed: () {
-        ref.read(cartProvider.notifier).addItem(
-          CartItem.fromProduct(product),
-        );
+        // Call controller method
+        cartController.addItem(CartItem.fromProduct(product));
       },
       child: Text('Add to Cart'),
     );
@@ -411,31 +412,36 @@ class ProductCard extends ConsumerWidget {
 </div>
 
 ```dart
-// ✅ Solution: Easy state sharing
+// ✅ Solution: Easy state sharing with State Management
 
-// Define provider once
-final cartProvider = StateNotifierProvider<CartNotifier, List<CartItem>>(
-  (ref) => CartNotifier(),
-);
+// Store cart in centralized state management
+// All widgets can access it directly
 
-// Access from anywhere!
-class AppBar extends ConsumerWidget {
+class AppBar extends StatelessWidget {
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final cartCount = ref.watch(cartProvider).length;
+  Widget build(BuildContext context) {
+    final cartCount = getCartCountFromState(); // Access from anywhere!
     return Badge(label: Text('$cartCount'));
   }
 }
 
-class ProductScreen extends ConsumerWidget {
+class ProductScreen extends StatelessWidget {
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     return ElevatedButton(
       onPressed: () {
-        ref.read(cartProvider.notifier).addItem(item);
+        addItemToCart(item); // Updates central state
       },
       child: Text('Add to Cart'),
     );
+  }
+}
+
+class CartPage extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final cartItems = getCartFromState(); // Same state, different widget!
+    return ListView(children: cartItems.map((item) => CartTile(item)).toList());
   }
 }
 
@@ -463,29 +469,43 @@ class CartScreen extends ConsumerWidget {
 </div>
 
 ```dart
-// ✅ Solution: Optimized rebuilds
+// ✅ Solution: Optimized rebuilds with State Management
 
-// Separate providers for different data
-final notificationCountProvider = StateProvider<int>((ref) => 0);
-final userProvider = StateProvider<User?>((ref) => null);
-final postsProvider = StateProvider<List<Post>>((ref) => []);
+// Separate state for different data types
+// Each widget watches only what it needs
 
-class HomeScreen extends ConsumerWidget {
+class HomeScreen extends StatelessWidget {
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     return Column(
       children: [
-        // Only rebuilds when notificationCount changes
-        Consumer(
-          builder: (context, ref, child) {
-            final count = ref.watch(notificationCountProvider);
-            return NotificationBadge(count: count);
-          },
-        ),
+        // Only rebuilds when notification count changes
+        NotificationBadgeWidget(), // Watches notification state only
 
         // Only rebuilds when user changes
-        Consumer(
-          builder: (context, ref, child) {
+        UserProfileWidget(), // Watches user state only
+
+        // Only rebuilds when posts change
+        PostsListWidget(), // Watches posts state only
+      ],
+    );
+  }
+}
+
+class NotificationBadgeWidget extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final count = getNotificationCountFromState(); // Selective watching
+    print('NotificationBadge rebuilt'); // Only prints when count changes
+    return Badge(label: Text('$count'));
+  }
+}
+
+class UserProfileWidget extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final user = getUserFromState(); // Selective watching
+    print('UserProfile rebuilt'); // Only prints when user changes
             final user = ref.watch(userProvider);
             return UserProfile(user: user);
           },

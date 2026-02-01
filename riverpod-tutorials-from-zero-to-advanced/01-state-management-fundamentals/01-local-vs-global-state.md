@@ -479,19 +479,30 @@ class _HomePageState extends State<HomePage> {
 </div>
 
 ```dart
-// ✅ GOOD: Make it global
-final userProvider = StateProvider<User?>((ref) => null);
+// ✅ GOOD: Make it global with State Management
+
+// User stored in global state (accessible from anywhere)
+// No need to pass through constructors
 
 class HomePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Column(
       children: [
-        AppBar(),         // Gets user from provider
-        ProfileSection(), // Gets user from provider
-        SettingsButton(), // Gets user from provider
+        AppBar(),         // Gets user from global state
+        ProfileSection(), // Gets user from global state
+        SettingsButton(), // Gets user from global state
       ],
     );
+  }
+}
+
+// Any widget can access user directly from state management
+class AppBar extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final user = getUserFromGlobalState(); // No props needed!
+    return Text('Welcome ${user.name}');
   }
 }
 ```

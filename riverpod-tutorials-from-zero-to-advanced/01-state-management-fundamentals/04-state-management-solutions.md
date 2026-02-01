@@ -676,25 +676,26 @@ BlocBuilder<ToggleBloc, ToggleState>(
 </div>
 
 ```dart
-// Define a provider
-final counterProvider = StateProvider<int>((ref) => 0);
+// With State Management - centralized state, easy access
 
-// Use it - no context needed!
-class CounterDisplay extends ConsumerWidget {
+// Counter stored in centralized state management
+// Any widget can access it without BuildContext!
+
+class CounterDisplay extends StatelessWidget {
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final count = ref.watch(counterProvider);
+  Widget build(BuildContext context) {
+    final count = getCounterFromState(); // Direct access, no context needed!
 
     return Text('Count: $count');
   }
 }
 
-class IncrementButton extends ConsumerWidget {
+class IncrementButton extends StatelessWidget {
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     return ElevatedButton(
       onPressed: () {
-        ref.read(counterProvider.notifier).state++;
+        incrementCounter(); // Update state directly
       },
       child: Text('Increment'),
     );
@@ -711,15 +712,18 @@ class IncrementButton extends ConsumerWidget {
 </div>
 
 ```dart
-// ✅ Errors caught at compile time, not runtime!
+// ✅ Type-safe State Management catches errors at compile time!
 
-final userProvider = StateProvider<User?>((ref) => null);
-
-// This won't compile:
-final user = ref.watch(userProviderrrr); // Typo caught at compile time!
+// State management with strong typing
 
 // This won't compile:
-final user = ref.watch<String>(userProvider); // Wrong type caught!
+final user = getUserrrrFromState(); // Typo caught at compile time!
+
+// This won't compile:
+String user = getUserFromState(); // Wrong type caught! (User expected, not String)
+
+// This won't compile:
+final age = user.ageeee; // Property typo caught!
 ```
 
 <div dir="rtl">
@@ -760,19 +764,27 @@ final databaseProvider = Provider<Database>((ref) {
   return DatabaseImpl();
 });
 
-final userRepositoryProvider = Provider<UserRepository>((ref) {
-  // Repository depends on database
-  final database = ref.watch(databaseProvider);
-  return UserRepository(database);
-});
+// State Management handles Dependency Injection automatically
 
-final authProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref) {
-  // Auth depends on repository
-  final repository = ref.watch(userRepositoryProvider);
-  return AuthNotifier(repository);
-});
+// Database → Repository → Auth (dependency chain)
+class Database { }
+class UserRepository {
+  final Database database;
+  UserRepository(this.database);
+}
+class AuthService {
+  final UserRepository repository;
+  AuthService(this.repository);
+}
 
-// Riverpod handles all the dependency injection!
+// State Management system automatically:
+// 1. Creates Database
+// 2. Injects it into UserRepository
+// 3. Injects UserRepository into AuthService
+// 4. Manages lifecycle of all dependencies
+
+// You just access what you need:
+final auth = getAuthFromState(); // All dependencies handled automatically!
 ```
 
 <div dir="rtl">
