@@ -300,95 +300,26 @@ class NotesState {
 
 </div>
 
-```
-1. هل أكتر من Widget محتاج الـ State ده؟
+
+ هل أكتر من Widget محتاج الـ State ده؟
    ✅ نعم → Global
    ❌ لا → Local
 
-2. هل لو الـ Widget اتشال، محتاج الـ State يفضل موجود؟
+ هل لو الـ Widget اتشال، محتاج الـ State يفضل موجود؟
    ✅ نعم → Global
    ❌ لا → Local
 
-3. هل الـ State ده بيتأثر بأكشن من Widget تاني؟
+ هل الـ State ده بيتأثر بأكشن من Widget تاني؟
    ✅ نعم → Global
    ❌ لا → Local
 
-4. هل محتاج تحفظ الـ State ده لما التطبيق يتقفل ويفتح تاني؟
+ هل محتاج تحفظ الـ State ده لما التطبيق يتقفل ويفتح تاني؟
    ✅ نعم → Global (+ Persistence)
    ❌ لا → Local
-```
+
 
 <div dir="rtl">
 
----
-
-## 💡 أمثلة من تطبيقات حقيقية
-
-### تطبيق Twitter
-
-</div>
-
-```dart
-class TwitterState {
-  // ========== Global State ==========
-  User currentUser;                    // Logged in user
-  List<Tweet> timeline;                // User's timeline
-  List<User> following;                // Who user follows
-  int unreadNotifications;             // Notification count
-  ThemeMode themeMode;                 // Dark/Light theme
-
-  // ========== Local State (Examples) ==========
-  // In TweetCard widget:
-  bool isExpanded;                     // Show full tweet text?
-  bool showReplies;                    // Show replies?
-
-  // In ComposeTweet widget:
-  String draftText;                    // Text being typed
-  List<File> attachedImages;           // Images being uploaded
-
-  // In ProfilePage widget:
-  int selectedTabIndex;                // Tweets/Replies/Likes tab
-}
-```
-
-<div dir="rtl">
-
----
-
-### تطبيق Spotify
-
-</div>
-
-```dart
-class SpotifyState {
-  // ========== Global State ==========
-  User currentUser;                    // Logged in user
-  Song? currentlyPlaying;              // Now playing song
-  List<Song> queue;                    // Playback queue
-  bool isPlaying;                      // Play/Pause state
-  PlaybackMode mode;                   // Shuffle/Repeat
-
-  // ========== Local State (Examples) ==========
-  // In SearchBar widget:
-  String searchText;                   // Search input
-  bool isFocused;                      // Is field focused?
-
-  // In SongList widget:
-  int? expandedSongId;                 // Which song details shown
-  bool isScrolling;                    // Auto-hide controls
-
-  // In VolumeSlider widget:
-  double tempVolume;                   // Volume while dragging
-}
-```
-
-<div dir="rtl">
-
-**الملاحظة المهمة:**
-- الأغنية الحالية (currently playing) Global - كل التطبيق محتاجها
-- النص في البحث Local - بس الـ SearchBar محتاجه
-
----
 
 ## ⚠️ أخطاء شائعة
 
@@ -479,30 +410,19 @@ class _HomePageState extends State<HomePage> {
 </div>
 
 ```dart
-// ✅ GOOD: Make it global with State Management
-
-// User stored in global state (accessible from anywhere)
-// No need to pass through constructors
+// ✅ GOOD: Make it global
+final userProvider = StateProvider<User?>((ref) => null);
 
 class HomePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Column(
       children: [
-        AppBar(),         // Gets user from global state
-        ProfileSection(), // Gets user from global state
-        SettingsButton(), // Gets user from global state
+        AppBar(),         // Gets user from provider
+        ProfileSection(), // Gets user from provider
+        SettingsButton(), // Gets user from provider
       ],
     );
-  }
-}
-
-// Any widget can access user directly from state management
-class AppBar extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    final user = getUserFromGlobalState(); // No props needed!
-    return Text('Welcome ${user.name}');
   }
 }
 ```
