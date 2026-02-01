@@ -859,10 +859,9 @@ final chatProvider = StreamProvider.autoDispose.family<Chat, String>((ref, chatI
 </div>
 
 ```dart
-// ✅ With code generation - even simpler!
+// ✅ With classic syntax - simple and clear!
 
-@riverpod
-class Counter extends _$Counter {
+class CounterNotifier extends Notifier<int> {
   @override
   int build() => 0;
 
@@ -870,7 +869,10 @@ class Counter extends _$Counter {
   void decrement() => state--;
 }
 
-// Generated provider: counterProvider
+final counterProvider = NotifierProvider<CounterNotifier, int>(
+  () => CounterNotifier(),
+);
+
 // Use it immediately!
 ```
 
@@ -1037,14 +1039,17 @@ class CounterDisplay extends ConsumerWidget {
 }
 
 // ==========================================
-// With code generation: 5 lines!
+// With classic syntax: Clean and simple!
 // ==========================================
-@riverpod
-class Counter extends _$Counter {
+class Counter2Notifier extends Notifier<int> {
   @override
   int build() => 0;
   void increment() => state++;
 }
+
+final counter2Provider = NotifierProvider<Counter2Notifier, int>(
+  () => Counter2Notifier(),
+);
 ```
 
 <div dir="rtl">

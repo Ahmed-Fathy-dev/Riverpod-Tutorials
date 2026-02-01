@@ -549,9 +549,8 @@ class _CartScreenState extends State<CartScreen> {
 </div>
 
 ```dart
-// Single source of truth for cart state (Riverpod 3 syntax)
-@riverpod
-class Cart extends _$Cart {
+// Single source of truth for cart state (Riverpod 3 classic syntax)
+class CartNotifier extends Notifier<List<CartItem>> {
   @override
   List<CartItem> build() {
     return []; // Initial empty cart
@@ -565,6 +564,10 @@ class Cart extends _$Cart {
     state = state.where((item) => item.id != id).toList();
   }
 }
+
+final cartProvider = NotifierProvider<CartNotifier, List<CartItem>>(
+  () => CartNotifier(),
+);
 
 // Now any widget can access cart state
 class ProductListScreen extends ConsumerWidget {
