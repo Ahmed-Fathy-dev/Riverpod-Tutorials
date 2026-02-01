@@ -300,7 +300,7 @@ class NotesState {
 
 </div>
 
-```
+
  هل أكتر من Widget محتاج الـ State ده؟
    ✅ نعم → Global
    ❌ لا → Local
@@ -316,7 +316,7 @@ class NotesState {
  هل محتاج تحفظ الـ State ده لما التطبيق يتقفل ويفتح تاني؟
    ✅ نعم → Global (+ Persistence)
    ❌ لا → Local
-```
+
 
 <div dir="rtl">
 
