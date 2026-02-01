@@ -33,8 +33,8 @@
 - أمثلة اختبار (Testing) شاملة
 
 ### 5. تدرج منطقي
-- من أساسيات إدارة الحالة (State Management)
-- لأساسيات Riverpod (Riverpod Basics)
+- من أساسيات State Management
+- لأساسيات Riverpod
 - للأنماط المتقدمة (Advanced Patterns)
 - للتفاصيل الداخلية (Internal Implementation)
 
