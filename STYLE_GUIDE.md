@@ -135,44 +135,89 @@ class TodosList extends _$TodosList {
 }
 ```
 
-#### Section 03: مستوى مبتدئ
+#### Section 03-05: مستوى مبتدئ (Classic Syntax)
 
 **المسموح:**
-- Basic providers (`@riverpod`)
+- Classic Provider syntax فقط
+- Provider, StateProvider, FutureProvider, StreamProvider
 - `ref.watch`, `ref.read`
 - ConsumerWidget
 - أمثلة بسيطة (Counter, Todo)
 
 **الممنوع:**
+- Code generation (`@riverpod`)
+- Notifier classes
 - Family modifier
-- AutoDispose details
-- Complex state management
-- Advanced patterns
+- AutoDispose details (إلا لو شرح نظري بسيط)
 
-#### Section 04+: مستوى متوسط ومتقدم
+#### Section 06: Code Generation Introduction
+
+**المسموح:**
+- شرح build_runner setup
+- مقارنة classic vs code generation
+- Migration من classic لـ code generation
+- أول أمثلة بسيطة بالـ `@riverpod`
+
+#### Section 07+: مستوى متوسط ومتقدم (Code Generation)
 
 **المسموح:**
 - كل الـ modifiers
+- Notifier و AsyncNotifier
 - Advanced patterns
 - Performance optimization
 - Complex examples
 
 ---
 
-### 4. Riverpod 3 Syntax (ممنوع Legacy)
+### 4. Riverpod Syntax Progression (CRITICAL!)
 
-**القاعدة:** استخدم Riverpod 3 code generation فقط - ممنوع StateNotifier أو classic syntax.
+**القاعدة الأهم:** في تسلسل محدد لتعليم Riverpod - لازم نلتزم بيه!
 
-#### ✅ صح (Riverpod 3):
+#### 🔵 Phase 1: Classic Syntax (Sections 00-05)
+
+**المسموح في Sections 00-05:**
 
 ```dart
-// Simple provider
-@riverpod
-int counter(CounterRef ref) {
-  return 0;
-}
+// Provider - for read-only/computed values
+final nameProvider = Provider<String>((ref) {
+  return 'Ahmed';
+});
 
-// Stateful provider
+final doubledProvider = Provider<int>((ref) {
+  final count = ref.watch(counterProvider);
+  return count * 2;
+});
+
+// StateProvider - for simple mutable state
+final counterProvider = StateProvider<int>((ref) => 0);
+
+// Usage
+ref.read(counterProvider.notifier).state = 5;
+
+// FutureProvider - for one-time async data
+final userProvider = FutureProvider<User>((ref) async {
+  return await api.getUser();
+});
+
+// StreamProvider - for continuous data streams
+final messagesProvider = StreamProvider<Message>((ref) {
+  return chatService.messages();
+});
+```
+
+**الهدف:** المتعلم يفهم المفاهيم الأساسية بدون تعقيد code generation.
+
+---
+
+#### 🟢 Phase 2: Code Generation Introduction (Section 06)
+
+**في Section 06 بس - نشرح الانتقال:**
+
+```dart
+// Before: Classic syntax
+final counterProvider = StateProvider<int>((ref) => 0);
+
+// After: Code generation
 @riverpod
 class Counter extends _$Counter {
   @override
@@ -180,24 +225,78 @@ class Counter extends _$Counter {
 
   void increment() => state++;
 }
+```
 
-// Async provider
+**نشرح:**
+- إزاي نعمل setup لـ build_runner
+- الفرق بين الطريقتين
+- مميزات code generation (type safety, less boilerplate)
+
+---
+
+#### 🟡 Phase 3: Modern Riverpod 3 (Sections 07+)
+
+**المسموح في Sections 07+:**
+
+```dart
+// Simple provider (read-only)
 @riverpod
-Future<User> user(UserRef ref) async {
-  return await api.getUser();
+int doubled(DoubledRef ref) {
+  final count = ref.watch(counterProvider);
+  return count * 2;
 }
 
-// Family provider
+// Notifier - for synchronous mutable state
+@riverpod
+class Counter extends _$Counter {
+  @override
+  int build() => 0;
+
+  void increment() => state++;
+  void decrement() => state--;
+  void reset() => state = 0;
+}
+
+// AsyncNotifier - for asynchronous mutable state
+@riverpod
+class Todos extends _$Todos {
+  @override
+  Future<List<Todo>> build() async {
+    return await api.getTodos();
+  }
+
+  Future<void> addTodo(Todo todo) async {
+    state = const AsyncLoading();
+    state = await AsyncValue.guard(() async {
+      await api.addTodo(todo);
+      return await api.getTodos();
+    });
+  }
+}
+
+// FutureProvider with parameters (Family)
 @riverpod
 Future<Product> product(ProductRef ref, String id) async {
   return await api.getProduct(id);
 }
+
+// StreamProvider
+@riverpod
+Stream<Message> messages(MessagesRef ref) {
+  return chatService.messages();
+}
 ```
 
-#### ❌ غلط (Legacy):
+**الهدف:** استخدام أحدث وأفضل practices في Riverpod 3.
+
+---
+
+#### 🔴 FORBIDDEN - StateNotifier (Legacy!)
+
+**ممنوع تماماً** في كل الأقسام (ما عدا Migration Guide):
 
 ```dart
-// ❌ StateNotifier (legacy)
+// ❌ StateNotifier - THIS IS LEGACY! DO NOT USE!
 class CounterNotifier extends StateNotifier<int> {
   CounterNotifier() : super(0);
   void increment() => state = state + 1;
@@ -206,15 +305,47 @@ class CounterNotifier extends StateNotifier<int> {
 final counterProvider = StateNotifierProvider<CounterNotifier, int>((ref) {
   return CounterNotifier();
 });
-
-// ❌ Classic Provider syntax
-final counterProvider = Provider<int>((ref) => 0);
-
-// ❌ StateProvider (استخدم Notifier بدلاً منه)
-final counterProvider = StateProvider<int>((ref) => 0);
 ```
 
-**استثناء:** Section 02 (Comparing State Management) لو بنقارن مع legacy - نوضح إنه legacy ونعرض البديل الجديد.
+**ليه ممنوع؟**
+- StateNotifier كان في Riverpod 2.x
+- Riverpod 3 عنده **Notifier** و **AsyncNotifier** أفضل
+- الـ official docs بتقول استخدم Notifier بدلها
+
+**الاستثناء الوحيد:** Section 13 (Migration Guides) - نشرح إزاي تعمل migrate من StateNotifier لـ Notifier.
+
+---
+
+#### 📋 Summary - متى تستخدم إيه؟
+
+| القسم | Syntax المسموح | الهدف |
+|------|----------------|-------|
+| **00-02** | مفاهيم نظرية، pseudo-code | فهم State Management |
+| **03-05** | Classic (Provider, StateProvider, etc.) | تعلم Basics بدون complexity |
+| **06** | Classic + Code Generation (المقارنة) | الانتقال بين الطريقتين |
+| **07+** | Code Generation (Notifier, AsyncNotifier) | Modern Riverpod 3 |
+| **13** | Migration: StateNotifier → Notifier | Legacy migration فقط |
+
+---
+
+#### ⚠️ ملحوظات مهمة
+
+**ملحوظة 1:** لو Section 00 فيه Quick Start، لازم يكون **classic syntax** - مش code generation! Quick start لازم يكون بسيط بدون build_runner.
+
+**ملحوظة 2:** في Section 02 (Comparisons)، ممكن نذكر إن Riverpod عنده طريقتين، بس **ما نستخدمش** تفاصيل - بس مفاهيم عامة.
+
+**ملحوظة 3:** StateProvider في classic syntax **مقبول** للتعليم - بس في Sections 03-05 فقط. بعد كده نستخدم Notifier.
+
+---
+
+#### ✅ قاعدة ذهبية
+
+> **قبل ما تكتب أي مثال، اسأل نفسك:**
+> - القسم ده رقم كام؟
+> - المتعلم وصل لـ code generation ولا لسه؟
+> - هل المثال ده مناسب لمستوى القسم؟
+>
+> **لو مش متأكد → استخدم الـ syntax الأبسط!**
 
 ---
 
@@ -403,15 +534,22 @@ class Counter extends _$Counter {
 
 قبل ما تعمل commit لأي ملف، تأكد من:
 
-- [ ] كل سطر نص بيبدأ بحرف عربي
+**العامة:**
+- [ ] كل سطر نص بيبدأ بحرف عربي (RTL)
 - [ ] المصطلحات التقنية بالإنجليزي مع شرح
-- [ ] مستوى الأمثلة مناسب للقسم
-- [ ] استخدام Riverpod 3 syntax فقط (لا legacy)
 - [ ] الكتابة بالعامية المصرية
 - [ ] Code comments بالإنجليزي فقط
 - [ ] البنية منظمة حسب Template
 - [ ] في قسم "الخطوة الجاية"
 - [ ] في قسم "المصادر"
+
+**حسب رقم القسم:**
+- [ ] Section 00-02: مفاهيم نظرية فقط (لا implementation)
+- [ ] Section 03-05: Classic syntax فقط (لا @riverpod)
+- [ ] Section 06: Classic + Code Generation (المقارنة)
+- [ ] Section 07+: Code Generation (Notifier/AsyncNotifier)
+- [ ] لا StateNotifier في أي مكان (إلا Migration Guide)
+- [ ] مستوى الأمثلة مناسب للقسم
 
 ---
 
@@ -420,13 +558,37 @@ class Counter extends _$Counter {
 عند مراجعة ملف قديم:
 
 1. **افتح الملف**
-2. **راجع كل قاعدة** من القواعد فوق
-3. **صلح المشاكل**:
-   - StateNotifier → `@riverpod` Notifier
+2. **حدد رقم القسم** (Section number)
+3. **راجع كل قاعدة** من القواعد فوق
+4. **صلح المشاكل حسب القسم**:
+
+   **لو Section 00-02:**
+   - امسح أي Riverpod implementation details
+   - استخدم pseudo-code أو مفاهيم نظرية
    - ترجمات → مصطلحات إنجليزي
    - RTL issues → اتجاه صحيح
-   - أمثلة متقدمة → تبسيط أو نقل لقسم متقدم
-4. **Commit** بـ message واضح عن التعديلات
+
+   **لو Section 03-05:**
+   - `@riverpod` → Classic syntax (Provider, StateProvider, etc.)
+   - StateNotifier → StateProvider (مؤقت للتعليم)
+   - Notifier → StateProvider
+   - امسح أي code generation
+   - ترجمات → مصطلحات إنجليزي
+   - RTL issues → اتجاه صحيح
+
+   **لو Section 06:**
+   - اعرض الطريقتين (Classic + Code Generation)
+   - اشرح المقارنة والانتقال
+   - StateNotifier → Notifier
+
+   **لو Section 07+:**
+   - StateNotifier → Notifier
+   - Classic syntax → Code generation
+   - استخدم `@riverpod` مع Notifier/AsyncNotifier
+   - ترجمات → مصطلحات إنجليزي
+   - RTL issues → اتجاه صحيح
+
+5. **Commit** بـ message واضح عن التعديلات
 
 ---
 
