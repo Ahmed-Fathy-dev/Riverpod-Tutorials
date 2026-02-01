@@ -86,13 +86,16 @@ class CounterDisplay extends ConsumerWidget {
 </div>
 
 ```dart
-@riverpod
-class Counter extends _$Counter {
+// Counter Notifier class
+class Counter extends Notifier<int> {
   @override
   int build() => 0;
 
   void increment() => state++;
 }
+
+// Counter Provider
+final counterProvider = NotifierProvider<Counter, int>(() => Counter());
 
 class CounterPage extends ConsumerWidget {
   @override
@@ -612,8 +615,8 @@ ref.listen(userProvider, (previous, next) {
 </div>
 
 ```dart
-@riverpod
-class ShoppingCart extends _$ShoppingCart {
+// Shopping Cart Notifier class
+class ShoppingCart extends Notifier<List<CartItem>> {
   @override
   List<CartItem> build() => [];
 
@@ -629,6 +632,11 @@ class ShoppingCart extends _$ShoppingCart {
     return state.fold(0, (sum, item) => sum + item.price);
   }
 }
+
+// Shopping Cart Provider
+final shoppingCartProvider = NotifierProvider<ShoppingCart, List<CartItem>>(
+  () => ShoppingCart(),
+);
 
 class ProductCard extends ConsumerWidget {
   final Product product;
