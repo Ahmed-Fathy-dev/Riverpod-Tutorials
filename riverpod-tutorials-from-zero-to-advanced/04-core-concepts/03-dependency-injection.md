@@ -74,14 +74,12 @@ final service2 = UserService(MockApiClient()); // For testing
 
 ```dart
 // 1. Define dependencies
-@riverpod
-ApiClient apiClient(ApiClientRef ref) {
+final apiClientProvider = Provider<ApiClient>((ref) {
   return ApiClient(baseUrl: 'https://api.example.com');
-}
+});
 
 // 2. Inject dependency automatically
-@riverpod
-class UserRepository extends _$UserRepository {
+class UserRepositoryNotifier extends AsyncNotifier<User> {
   @override
   Future<User> build() async {
     // Dependency injected via ref.watch
@@ -90,6 +88,10 @@ class UserRepository extends _$UserRepository {
     return await api.getUser();
   }
 }
+
+final userRepositoryProvider = AsyncNotifierProvider<UserRepositoryNotifier, User>(
+  () => UserRepositoryNotifier(),
+);
 
 // 3. Use in widget
 class UserProfile extends ConsumerWidget {
@@ -126,8 +128,7 @@ class UserProfile extends ConsumerWidget {
 
 ```dart
 // ApiClient is a direct dependency
-@riverpod
-class UserRepository extends _$UserRepository {
+class UserRepository2Notifier extends AsyncNotifier<User> {
   @override
   Future<User> build() async {
     // Direct dependency - rebuilds when apiClient changes
@@ -136,6 +137,10 @@ class UserRepository extends _$UserRepository {
     return await api.getUser();
   }
 }
+
+final userRepository2Provider = AsyncNotifierProvider<UserRepository2Notifier, User>(
+  () => UserRepository2Notifier(),
+);
 ```
 
 <div dir="rtl">
@@ -146,27 +151,28 @@ class UserRepository extends _$UserRepository {
 
 ```dart
 // Three-level dependency chain
-@riverpod
-HttpClient httpClient(HttpClientRef ref) {
+final httpClientProvider = Provider<HttpClient>((ref) {
   return HttpClient();
-}
+});
 
-@riverpod
-ApiClient apiClient(ApiClientRef ref) {
+final apiClient2Provider = Provider<ApiClient>((ref) {
   // Depends on httpClient
   final http = ref.watch(httpClientProvider);
   return ApiClient(http);
-}
+});
 
-@riverpod
-class UserRepository extends _$UserRepository {
+class UserRepository3Notifier extends AsyncNotifier<User> {
   @override
   Future<User> build() async {
     // Depends on apiClient (which depends on httpClient)
-    final api = ref.watch(apiClientProvider);
+    final api = ref.watch(apiClient2Provider);
     return await api.getUser();
   }
 }
+
+final userRepository3Provider = AsyncNotifierProvider<UserRepository3Notifier, User>(
+  () => UserRepository3Notifier(),
+);
 
 // Dependency graph:
 // UserRepository → ApiClient → HttpClient
@@ -179,8 +185,7 @@ class UserRepository extends _$UserRepository {
 </div>
 
 ```dart
-@riverpod
-class Dashboard extends _$Dashboard {
+class DashboardNotifier extends AsyncNotifier<DashboardData> {
   @override
   Future<DashboardData> build() async {
     // Multiple dependencies
@@ -195,6 +200,10 @@ class Dashboard extends _$Dashboard {
     );
   }
 }
+
+final dashboardProvider = AsyncNotifierProvider<DashboardNotifier, DashboardData>(
+  () => DashboardNotifier(),
+);
 ```
 
 <div dir="rtl">
@@ -204,8 +213,7 @@ class Dashboard extends _$Dashboard {
 </div>
 
 ```dart
-@riverpod
-class ConditionalData extends _$ConditionalData {
+class ConditionalDataNotifier extends AsyncNotifier<Data> {
   @override
   Future<Data> build() async {
     final isLoggedIn = ref.watch(isLoggedInProvider);
@@ -224,6 +232,10 @@ class ConditionalData extends _$ConditionalData {
     return Data.empty();
   }
 }
+
+final conditionalDataProvider = AsyncNotifierProvider<ConditionalDataNotifier, Data>(
+  () => ConditionalDataNotifier(),
+);
 ```
 
 <div dir="rtl">
@@ -240,37 +252,36 @@ Riverpod بيبني dependency graph تلقائياً ويتتبع العلاق�
 
 ```dart
 // Low-level dependencies
-@riverpod
-HttpClient httpClient(HttpClientRef ref) {
+final httpClient2Provider = Provider<HttpClient>((ref) {
   return HttpClient();
-}
+});
 
-@riverpod
-AuthToken authToken(AuthTokenRef ref) {
+final authTokenProvider = Provider<AuthToken>((ref) {
   return AuthToken.load();
-}
+});
 
 // Mid-level dependencies
-@riverpod
-ApiClient apiClient(ApiClientRef ref) {
-  final http = ref.watch(httpClientProvider);
+final apiClient3Provider = Provider<ApiClient>((ref) {
+  final http = ref.watch(httpClient2Provider);
   final token = ref.watch(authTokenProvider);
 
   return ApiClient(http: http, token: token);
-}
+});
 
 // High-level dependencies
-@riverpod
-class ProductCatalog extends _$ProductCatalog {
+class ProductCatalogNotifier extends AsyncNotifier<List<Product>> {
   @override
   Future<List<Product>> build() async {
-    final api = ref.watch(apiClientProvider);
+    final api = ref.watch(apiClient3Provider);
     return await api.getProducts();
   }
 }
 
-@riverpod
-class ShoppingCart extends _$ShoppingCart {
+final productCatalogProvider = AsyncNotifierProvider<ProductCatalogNotifier, List<Product>>(
+  () => ProductCatalogNotifier(),
+);
+
+class ShoppingCartNotifier extends Notifier<List<CartItem>> {
   @override
   List<CartItem> build() {
     // Watches products to validate cart items
@@ -284,8 +295,11 @@ class ShoppingCart extends _$ShoppingCart {
   }
 }
 
-@riverpod
-class Checkout extends _$Checkout {
+final shoppingCartProvider = NotifierProvider<ShoppingCartNotifier, List<CartItem>>(
+  () => ShoppingCartNotifier(),
+);
+
+class CheckoutNotifier extends Notifier<CheckoutState> {
   @override
   CheckoutState build() {
     // Multiple dependencies
@@ -299,10 +313,14 @@ class Checkout extends _$Checkout {
   }
 
   Future<void> placeOrder() async {
-    final api = ref.watch(apiClientProvider);
+    final api = ref.read(apiClient3Provider);
     await api.placeOrder(state.items);
   }
 }
+
+final checkoutProvider = NotifierProvider<CheckoutNotifier, CheckoutState>(
+  () => CheckoutNotifier(),
+);
 ```
 
 <div dir="rtl">
@@ -335,8 +353,7 @@ CurrentUser ─────────────────┼────�
 </div>
 
 ```dart
-@riverpod
-class FilteredProducts extends _$FilteredProducts {
+class FilteredProductsNotifier extends Notifier<List<Product>> {
   @override
   List<Product> build() {
     final allProducts = ref.watch(productsProvider);
@@ -346,6 +363,10 @@ class FilteredProducts extends _$FilteredProducts {
     return allProducts.where((p) => p.category == filter).toList();
   }
 }
+
+final filteredProductsProvider = NotifierProvider<FilteredProductsNotifier, List<Product>>(
+  () => FilteredProductsNotifier(),
+);
 ```
 
 <div dir="rtl">
@@ -360,8 +381,7 @@ class FilteredProducts extends _$FilteredProducts {
 </div>
 
 ```dart
-@riverpod
-class OrderProcessor extends _$OrderProcessor {
+class OrderProcessorNotifier extends Notifier<ProcessorState> {
   @override
   ProcessorState build() {
     return ProcessorState.idle();
@@ -375,6 +395,10 @@ class OrderProcessor extends _$OrderProcessor {
     await api.submitOrder(order, userId);
   }
 }
+
+final orderProcessorProvider = NotifierProvider<OrderProcessorNotifier, ProcessorState>(
+  () => OrderProcessorNotifier(),
+);
 ```
 
 <div dir="rtl">
@@ -389,8 +413,7 @@ class OrderProcessor extends _$OrderProcessor {
 </div>
 
 ```dart
-@riverpod
-class NotificationManager extends _$NotificationManager {
+class NotificationManagerNotifier extends Notifier<int> {
   @override
   int build() {
     // Listen to new messages
@@ -410,6 +433,10 @@ class NotificationManager extends _$NotificationManager {
     // Show notification
   }
 }
+
+final notificationManagerProvider = NotifierProvider<NotificationManagerNotifier, int>(
+  () => NotificationManagerNotifier(),
+);
 ```
 
 <div dir="rtl">
@@ -431,19 +458,21 @@ class NotificationManager extends _$NotificationManager {
 
 ```dart
 // Production code
-@riverpod
-ApiClient apiClient(ApiClientRef ref) {
+final apiClient4Provider = Provider<ApiClient>((ref) {
   return RealApiClient();
-}
+});
 
-@riverpod
-class UserRepository extends _$UserRepository {
+class UserRepository4Notifier extends AsyncNotifier<User> {
   @override
   Future<User> build() async {
-    final api = ref.watch(apiClientProvider);
+    final api = ref.watch(apiClient4Provider);
     return await api.getUser();
   }
 }
+
+final userRepository4Provider = AsyncNotifierProvider<UserRepository4Notifier, User>(
+  () => UserRepository4Notifier(),
+);
 
 // Test code
 void main() {
@@ -452,14 +481,14 @@ void main() {
     final container = ProviderContainer(
       overrides: [
         // Override with mock
-        apiClientProvider.overrideWithValue(
+        apiClient4Provider.overrideWithValue(
           MockApiClient(),
         ),
       ],
     );
 
     // Test
-    final user = await container.read(userRepositoryProvider.future);
+    final user = await container.read(userRepository4Provider.future);
 
     expect(user.name, 'Test User');
   });
@@ -523,8 +552,7 @@ Riverpod **بيمنع** circular dependencies في compile time.
 
 ```dart
 // ❌ This will NOT compile
-@riverpod
-class ProviderA extends _$ProviderA {
+class ProviderANotifier extends Notifier<int> {
   @override
   int build() {
     // Depends on B
@@ -532,14 +560,21 @@ class ProviderA extends _$ProviderA {
   }
 }
 
-@riverpod
-class ProviderB extends _$ProviderB {
+final providerAProvider = NotifierProvider<ProviderANotifier, int>(
+  () => ProviderANotifier(),
+);
+
+class ProviderBNotifier extends Notifier<int> {
   @override
   int build() {
     // Depends on A - CIRCULAR!
     return ref.watch(providerAProvider);
   }
 }
+
+final providerBProvider = NotifierProvider<ProviderBNotifier, int>(
+  () => ProviderBNotifier(),
+);
 
 // Error: Circular dependency detected
 ```
@@ -554,8 +589,7 @@ class ProviderB extends _$ProviderB {
 // ✅ Correct approach
 
 // Shared state
-@riverpod
-class SharedCounter extends _$SharedCounter {
+class SharedCounterNotifier extends Notifier<int> {
   @override
   int build() {
     return 0;
@@ -564,18 +598,20 @@ class SharedCounter extends _$SharedCounter {
   void increment() => state++;
 }
 
+final sharedCounterProvider = NotifierProvider<SharedCounterNotifier, int>(
+  () => SharedCounterNotifier(),
+);
+
 // Both depend on shared state
-@riverpod
-int doubleCounter(DoubleCounterRef ref) {
+final doubleCounterProvider = Provider<int>((ref) {
   final count = ref.watch(sharedCounterProvider);
   return count * 2;
-}
+});
 
-@riverpod
-int tripleCounter(TripleCounterRef ref) {
+final tripleCounterProvider = Provider<int>((ref) {
   final count = ref.watch(sharedCounterProvider);
   return count * 3;
-}
+});
 ```
 
 <div dir="rtl">
@@ -590,23 +626,20 @@ int tripleCounter(TripleCounterRef ref) {
 
 ```dart
 // Layer 1: Core Services
-@riverpod
-SecureStorage secureStorage(SecureStorageRef ref) {
+final secureStorageProvider = Provider<SecureStorage>((ref) {
   return SecureStorage();
-}
+});
 
-@riverpod
-HttpClient httpClient(HttpClientRef ref) {
+final httpClient3Provider = Provider<HttpClient>((ref) {
   return HttpClient();
-}
+});
 
 // Layer 2: API Services
-@riverpod
-class AuthService extends _$AuthService {
+class AuthServiceNotifier extends Notifier<AuthState> {
   @override
   AuthState build() {
     final storage = ref.watch(secureStorageProvider);
-    final http = ref.watch(httpClientProvider);
+    final http = ref.watch(httpClient3Provider);
 
     return AuthState(storage: storage, http: http);
   }
@@ -616,14 +649,17 @@ class AuthService extends _$AuthService {
   }
 }
 
+final authServiceProvider = NotifierProvider<AuthServiceNotifier, AuthState>(
+  () => AuthServiceNotifier(),
+);
+
 // Layer 3: Repositories
-@riverpod
-class UserRepository extends _$UserRepository {
+class UserRepository5Notifier extends AsyncNotifier<User?> {
   @override
   Future<User?> build() async {
     // Watch auth to get token
     final auth = ref.watch(authServiceProvider);
-    final http = ref.watch(httpClientProvider);
+    final http = ref.watch(httpClient3Provider);
 
     if (!auth.isAuthenticated) {
       return null;
@@ -631,27 +667,38 @@ class UserRepository extends _$UserRepository {
 
     return await http.get('/user');
   }
+
+  Future<void> updateProfile(ProfileData data) async {
+    // Implementation
+  }
 }
 
+final userRepository5Provider = AsyncNotifierProvider<UserRepository5Notifier, User?>(
+  () => UserRepository5Notifier(),
+);
+
 // Layer 4: Use Cases
-@riverpod
-class UpdateProfile extends _$UpdateProfile {
+class UpdateProfileNotifier extends Notifier<UpdateState> {
   @override
   UpdateState build() {
     return UpdateState.idle();
   }
 
   Future<void> execute(ProfileData data) async {
-    final repo = ref.read(userRepositoryProvider.notifier);
+    final repo = ref.read(userRepository5Provider.notifier);
     await repo.updateProfile(data);
   }
 }
+
+final updateProfileProvider = NotifierProvider<UpdateProfileNotifier, UpdateState>(
+  () => UpdateProfileNotifier(),
+);
 
 // Layer 5: Presentation
 class ProfilePage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final userAsync = ref.watch(userRepositoryProvider);
+    final userAsync = ref.watch(userRepository5Provider);
     final updateUseCase = ref.read(updateProfileProvider.notifier);
 
     return userAsync.when(
@@ -674,14 +721,12 @@ class ProfilePage extends ConsumerWidget {
 
 ```dart
 // Configuration
-@riverpod
-FeatureFlags featureFlags(FeatureFlagsRef ref) {
+final featureFlagsProvider = Provider<FeatureFlags>((ref) {
   return FeatureFlags.load();
-}
+});
 
 // Service that depends on feature flags
-@riverpod
-class AnalyticsService extends _$AnalyticsService {
+class AnalyticsServiceNotifier extends Notifier<Analytics> {
   @override
   Analytics build() {
     final flags = ref.watch(featureFlagsProvider);
@@ -698,6 +743,10 @@ class AnalyticsService extends _$AnalyticsService {
     state.track(event);
   }
 }
+
+final analyticsServiceProvider = NotifierProvider<AnalyticsServiceNotifier, Analytics>(
+  () => AnalyticsServiceNotifier(),
+);
 
 // Widget adapts based on feature flags
 class HomePage extends ConsumerWidget {
@@ -729,14 +778,12 @@ class HomePage extends ConsumerWidget {
 // Environment configuration
 enum Environment { dev, staging, prod }
 
-@riverpod
-Environment environment(EnvironmentRef ref) {
+final environmentProvider = Provider<Environment>((ref) {
   // Load from build config
   return Environment.dev;
-}
+});
 
-@riverpod
-String apiBaseUrl(ApiBaseUrlRef ref) {
+final apiBaseUrlProvider = Provider<String>((ref) {
   final env = ref.watch(environmentProvider);
 
   return switch (env) {
@@ -744,14 +791,13 @@ String apiBaseUrl(ApiBaseUrlRef ref) {
     Environment.staging => 'https://staging.api.com',
     Environment.prod => 'https://api.com',
   };
-}
+});
 
-@riverpod
-ApiClient apiClient(ApiClientRef ref) {
+final apiClient5Provider = Provider<ApiClient>((ref) {
   final baseUrl = ref.watch(apiBaseUrlProvider);
 
   return ApiClient(baseUrl: baseUrl);
-}
+});
 
 // Testing with different environments
 void main() {
@@ -781,33 +827,29 @@ void main() {
 
 ```dart
 // ✅ Good: Each provider has one job
-@riverpod
-HttpClient httpClient(HttpClientRef ref) {
+final httpClient4Provider = Provider<HttpClient>((ref) {
   return HttpClient();
-}
+});
 
-@riverpod
-AuthToken authToken(AuthTokenRef ref) {
+final authToken2Provider = Provider<AuthToken>((ref) {
   return AuthToken.load();
-}
+});
 
-@riverpod
-ApiClient apiClient(ApiClientRef ref) {
-  final http = ref.watch(httpClientProvider);
-  final token = ref.watch(authTokenProvider);
+final apiClient6Provider = Provider<ApiClient>((ref) {
+  final http = ref.watch(httpClient4Provider);
+  final token = ref.watch(authToken2Provider);
   return ApiClient(http, token);
-}
+});
 
 // ❌ Bad: Provider doing too much
-@riverpod
-Everything everything(EverythingRef ref) {
+final everythingProvider = Provider<Everything>((ref) {
   final http = HttpClient();
   final token = AuthToken.load();
   final api = ApiClient(http, token);
   final user = api.getUser();
   // Too many responsibilities!
   return Everything(http, token, api, user);
-}
+});
 ```
 
 <div dir="rtl">
@@ -818,8 +860,7 @@ Everything everything(EverythingRef ref) {
 
 ```dart
 // ✅ Good: Clear dependencies
-@riverpod
-class UserService extends _$UserService {
+class UserServiceNotifier extends Notifier<Service> {
   @override
   Service build() {
     final api = ref.watch(apiProvider);
@@ -829,15 +870,22 @@ class UserService extends _$UserService {
   }
 }
 
+final userServiceProvider = NotifierProvider<UserServiceNotifier, Service>(
+  () => UserServiceNotifier(),
+);
+
 // ❌ Bad: Hidden dependencies
-@riverpod
-class UserService extends _$UserService {
+class UserService2Notifier extends Notifier<Service> {
   @override
   Service build() {
     // Hidden global access
     return Service(api: GlobalApi.instance);
   }
 }
+
+final userService2Provider = NotifierProvider<UserService2Notifier, Service>(
+  () => UserService2Notifier(),
+);
 ```
 
 <div dir="rtl">
@@ -849,20 +897,22 @@ class UserService extends _$UserService {
 ```dart
 // ✅ Good: Clear layers
 // Data layer
-@riverpod
-UserRepository userRepo(UserRepoRef ref) {
+final userRepoProvider = Provider<UserRepository>((ref) {
   return UserRepository(ref.watch(apiProvider));
-}
+});
 
 // Domain layer
-@riverpod
-class GetUserUseCase extends _$GetUserUseCase {
+class GetUserUseCaseNotifier extends FamilyAsyncNotifier<User, String> {
   @override
   Future<User> build(String id) async {
     final repo = ref.watch(userRepoProvider);
     return await repo.getUser(id);
   }
 }
+
+final getUserUseCaseProvider = AsyncNotifierProvider.family<GetUserUseCaseNotifier, User, String>(
+  () => GetUserUseCaseNotifier(),
+);
 
 // Presentation layer
 class UserPage extends ConsumerWidget {
@@ -882,8 +932,7 @@ class UserPage extends ConsumerWidget {
 
 ```dart
 // ✅ Good: Easy to test
-@riverpod
-class PaymentService extends _$PaymentService {
+class PaymentServiceNotifier extends Notifier<Service> {
   @override
   Service build() {
     // All dependencies injected
@@ -893,6 +942,10 @@ class PaymentService extends _$PaymentService {
     return Service(api: api, validator: validator);
   }
 }
+
+final paymentServiceProvider = NotifierProvider<PaymentServiceNotifier, Service>(
+  () => PaymentServiceNotifier(),
+);
 
 // Test
 test('payment validation works', () {
