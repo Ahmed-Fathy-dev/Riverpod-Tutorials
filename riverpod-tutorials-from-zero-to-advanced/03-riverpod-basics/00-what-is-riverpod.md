@@ -274,12 +274,15 @@ final profileProvider = Provider<Profile>((ref) {
 
 ```dart
 // ✅ Immutable approach
-final todosProvider = StateNotifierProvider<TodosNotifier, List<Todo>>((ref) {
+final todosProvider = NotifierProvider<TodosNotifier, List<Todo>>(() {
   return TodosNotifier();
 });
 
-class TodosNotifier extends StateNotifier<List<Todo>> {
-  TodosNotifier() : super([]);
+class TodosNotifier extends Notifier<List<Todo>> {
+  @override
+  List<Todo> build() {
+    return []; // Initial state
+  }
 
   void addTodo(Todo todo) {
     state = [...state, todo]; // Replace, don't mutate
