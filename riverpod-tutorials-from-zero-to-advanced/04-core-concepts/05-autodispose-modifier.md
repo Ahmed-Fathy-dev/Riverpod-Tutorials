@@ -32,8 +32,7 @@
 
 ```dart
 // AutoDispose by default in Riverpod 3
-@riverpod
-class Counter extends _$Counter {
+class CounterNotifier extends Notifier<int> {
   @override
   int build() {
     print('Counter created');
@@ -47,6 +46,10 @@ class Counter extends _$Counter {
 
   void increment() => state++;
 }
+
+final counterProvider = NotifierProvider.autoDispose<CounterNotifier, int>(
+  () => CounterNotifier(),
+);
 
 // Widget lifecycle
 class CounterPage extends ConsumerWidget {
@@ -79,8 +82,7 @@ class CounterPage extends ConsumerWidget {
 </div>
 
 ```dart
-@riverpod
-class DataProvider extends _$DataProvider {
+class DataProviderNotifier extends AsyncNotifier<Data> {
   Timer? _timer;
 
   @override
@@ -111,7 +113,15 @@ class DataProvider extends _$DataProvider {
 
     return await fetchData();
   }
+
+  Future<Data> fetchData() async {
+    return Data();
+  }
 }
+
+final dataProvider = AsyncNotifierProvider.autoDispose<DataProviderNotifier, Data>(
+  () => DataProviderNotifier(),
+);
 ```
 
 <div dir="rtl">
@@ -152,8 +162,7 @@ Not used for too long → onDispose (4) → Destroyed
 
 ```dart
 // Perfect for AutoDispose
-@riverpod
-class FormState extends _$FormState {
+class FormStateNotifier extends Notifier<FormData> {
   @override
   FormData build() {
     // No keepAlive - disposed when form closes
@@ -165,15 +174,22 @@ class FormState extends _$FormState {
   }
 }
 
+final formStateProvider = NotifierProvider.autoDispose<FormStateNotifier, FormData>(
+  () => FormStateNotifier(),
+);
+
 // Perfect for AutoDispose
-@riverpod
-class SearchResults extends _$SearchResults {
+class SearchResultsNotifier extends FamilyAsyncNotifier<List<Product>, String> {
   @override
   Future<List<Product>> build(String query) async {
     // Disposed when search screen closes
     return await api.search(query);
   }
 }
+
+final searchResultsProvider = AsyncNotifierProvider.autoDispose.family<SearchResultsNotifier, List<Product>, String>(
+  () => SearchResultsNotifier(),
+);
 ```
 
 <div dir="rtl">
@@ -190,8 +206,7 @@ class SearchResults extends _$SearchResults {
 
 ```dart
 // Perfect for KeepAlive
-@riverpod
-class AuthState extends _$AuthState {
+class AuthStateNotifier extends AsyncNotifier<User?> {
   @override
   Future<User?> build() async {
     // Keep alive - needed throughout app
@@ -200,14 +215,21 @@ class AuthState extends _$AuthState {
     return await loadAuthState();
   }
 
+  Future<User?> loadAuthState() async {
+    return null;
+  }
+
   Future<void> login(String email, String password) async {
     // Login logic
   }
 }
 
+final authStateProvider = AsyncNotifierProvider.autoDispose<AuthStateNotifier, User?>(
+  () => AuthStateNotifier(),
+);
+
 // Perfect for KeepAlive
-@riverpod
-class AppConfig extends _$AppConfig {
+class AppConfigNotifier extends Notifier<Config> {
   @override
   Config build() {
     // Keep alive - configuration is always needed
@@ -216,6 +238,10 @@ class AppConfig extends _$AppConfig {
     return Config.load();
   }
 }
+
+final appConfigProvider = NotifierProvider.autoDispose<AppConfigNotifier, Config>(
+  () => AppConfigNotifier(),
+);
 ```
 
 <div dir="rtl">
@@ -240,8 +266,7 @@ class AppConfig extends _$AppConfig {
 </div>
 
 ```dart
-@riverpod
-class ApiData extends _$ApiData {
+class ApiDataNotifier extends AsyncNotifier<Data> {
   @override
   Future<Data> build() async {
     // Disable AutoDispose permanently
@@ -249,7 +274,15 @@ class ApiData extends _$ApiData {
 
     return await fetchData();
   }
+
+  Future<Data> fetchData() async {
+    return Data();
+  }
 }
+
+final apiDataProvider = AsyncNotifierProvider.autoDispose<ApiDataNotifier, Data>(
+  () => ApiDataNotifier(),
+);
 ```
 
 <div dir="rtl">
@@ -259,8 +292,7 @@ class ApiData extends _$ApiData {
 </div>
 
 ```dart
-@riverpod
-class SmartCache extends _$SmartCache {
+class SmartCacheNotifier extends AsyncNotifier<Data> {
   @override
   Future<Data> build() async {
     final data = await fetchData();
@@ -272,7 +304,15 @@ class SmartCache extends _$SmartCache {
 
     return data;
   }
+
+  Future<Data> fetchData() async {
+    return Data();
+  }
 }
+
+final smartCacheProvider = AsyncNotifierProvider.autoDispose<SmartCacheNotifier, Data>(
+  () => SmartCacheNotifier(),
+);
 ```
 
 <div dir="rtl">
@@ -282,8 +322,7 @@ class SmartCache extends _$SmartCache {
 </div>
 
 ```dart
-@riverpod
-class CachedProducts extends _$CachedProducts {
+class CachedProductsNotifier extends AsyncNotifier<List<Product>> {
   @override
   Future<List<Product>> build() async {
     // Keep alive for 5 minutes
@@ -296,6 +335,10 @@ class CachedProducts extends _$CachedProducts {
     return await api.getProducts();
   }
 }
+
+final cachedProductsProvider = AsyncNotifierProvider.autoDispose<CachedProductsNotifier, List<Product>>(
+  () => CachedProductsNotifier(),
+);
 ```
 
 <div dir="rtl">
@@ -305,13 +348,16 @@ class CachedProducts extends _$CachedProducts {
 </div>
 
 ```dart
-@riverpod
-class DynamicCache extends _$DynamicCache {
+class DynamicCacheNotifier extends AsyncNotifier<Data> {
   KeepAliveLink? _link;
 
   @override
   Future<Data> build() async {
     return await fetchData();
+  }
+
+  Future<Data> fetchData() async {
+    return Data();
   }
 
   void enableCache() {
@@ -323,6 +369,10 @@ class DynamicCache extends _$DynamicCache {
     _link = null;
   }
 }
+
+final dynamicCacheProvider = AsyncNotifierProvider.autoDispose<DynamicCacheNotifier, Data>(
+  () => DynamicCacheNotifier(),
+);
 ```
 
 <div dir="rtl">
@@ -337,8 +387,7 @@ class DynamicCache extends _$DynamicCache {
 
 ```dart
 // Cart should be disposed when user leaves
-@riverpod
-class ShoppingCart extends _$ShoppingCart {
+class ShoppingCartNotifier extends Notifier<List<CartItem>> {
   @override
   List<CartItem> build() {
     print('Shopping cart created');
@@ -363,6 +412,10 @@ class ShoppingCart extends _$ShoppingCart {
     state = [];
   }
 }
+
+final shoppingCartProvider = NotifierProvider.autoDispose<ShoppingCartNotifier, List<CartItem>>(
+  () => ShoppingCartNotifier(),
+);
 
 // Usage
 class CartPage extends ConsumerWidget {
@@ -391,8 +444,7 @@ class CartPage extends ConsumerWidget {
 
 ```dart
 // Auth must persist across the app
-@riverpod
-class AuthState extends _$AuthState {
+class AuthStateNotifier2 extends AsyncNotifier<User?> {
   @override
   Future<User?> build() async {
     print('Auth state initialized');
@@ -426,6 +478,10 @@ class AuthState extends _$AuthState {
   }
 }
 
+final authStateProvider2 = AsyncNotifierProvider.autoDispose<AuthStateNotifier2, User?>(
+  () => AuthStateNotifier2(),
+);
+
 // Auth persists even when no widgets are watching
 class AnyPage extends ConsumerWidget {
   @override
@@ -445,8 +501,7 @@ class AnyPage extends ConsumerWidget {
 
 ```dart
 // Cache API data for limited time
-@riverpod
-class ProductsCatalog extends _$ProductsCatalog {
+class ProductsCatalogNotifier extends AsyncNotifier<List<Product>> {
   @override
   Future<List<Product>> build() async {
     print('Fetching products from API');
@@ -477,6 +532,10 @@ class ProductsCatalog extends _$ProductsCatalog {
     }
   }
 }
+
+final productsCatalogProvider = AsyncNotifierProvider.autoDispose<ProductsCatalogNotifier, List<Product>>(
+  () => ProductsCatalogNotifier(),
+);
 
 // First access: Fetches from API
 class Page1 extends ConsumerWidget {
@@ -511,8 +570,7 @@ class Page2 extends ConsumerWidget {
 
 ```dart
 // Manage WebSocket connection intelligently
-@riverpod
-class ChatConnection extends _$ChatConnection {
+class ChatConnectionNotifier extends FamilyStreamNotifier<ChatMessage, String> {
   IOWebSocketChannel? _channel;
 
   @override
@@ -558,6 +616,10 @@ class ChatConnection extends _$ChatConnection {
     }));
   }
 }
+
+final chatConnectionProvider = StreamNotifierProvider.autoDispose.family<ChatConnectionNotifier, ChatMessage, String>(
+  () => ChatConnectionNotifier(),
+);
 ```
 
 <div dir="rtl">
@@ -568,8 +630,7 @@ class ChatConnection extends _$ChatConnection {
 
 ```dart
 // Polls API every 5 seconds, stops when not needed
-@riverpod
-class LiveData extends _$LiveData {
+class LiveDataNotifier extends AsyncNotifier<Data> {
   Timer? _timer;
 
   @override
@@ -613,6 +674,10 @@ class LiveData extends _$LiveData {
     return await api.getData();
   }
 }
+
+final liveDataProvider = AsyncNotifierProvider.autoDispose<LiveDataNotifier, Data>(
+  () => LiveDataNotifier(),
+);
 ```
 
 <div dir="rtl">
@@ -626,8 +691,7 @@ class LiveData extends _$LiveData {
 </div>
 
 ```dart
-@riverpod
-class SmartCache extends _$SmartCache {
+class SmartCacheNotifier2 extends FamilyAsyncNotifier<ExpensiveData, String> {
   @override
   Future<ExpensiveData> build(String id) async {
     final data = await _fetchExpensiveData(id);
@@ -657,6 +721,10 @@ class SmartCache extends _$SmartCache {
     return ExpensiveData(id: id);
   }
 }
+
+final smartCacheProvider2 = AsyncNotifierProvider.autoDispose.family<SmartCacheNotifier2, ExpensiveData, String>(
+  () => SmartCacheNotifier2(),
+);
 ```
 
 <div dir="rtl">
@@ -666,8 +734,7 @@ class SmartCache extends _$SmartCache {
 </div>
 
 ```dart
-@riverpod
-class AdaptiveCache extends _$AdaptiveCache {
+class AdaptiveCacheNotifier extends AsyncNotifier<Data> {
   @override
   Future<Data> build() async {
     // Check user preference
@@ -687,7 +754,16 @@ class AdaptiveCache extends _$AdaptiveCache {
 
     return data;
   }
+
+  Future<Data> fetchData() async {
+    await Future.delayed(Duration(seconds: 1));
+    return Data();
+  }
 }
+
+final adaptiveCacheProvider = AsyncNotifierProvider.autoDispose<AdaptiveCacheNotifier, Data>(
+  () => AdaptiveCacheNotifier(),
+);
 ```
 
 <div dir="rtl">
@@ -697,8 +773,7 @@ class AdaptiveCache extends _$AdaptiveCache {
 </div>
 
 ```dart
-@riverpod
-class NetworkAwareData extends _$NetworkAwareData {
+class NetworkAwareDataNotifier extends AsyncNotifier<Data> {
   @override
   Future<Data> build() async {
     final connectivity = ref.watch(connectivityProvider);
@@ -725,7 +800,16 @@ class NetworkAwareData extends _$NetworkAwareData {
 
     return data;
   }
+
+  Future<Data> fetchData() async {
+    await Future.delayed(Duration(seconds: 1));
+    return Data();
+  }
 }
+
+final networkAwareDataProvider = AsyncNotifierProvider.autoDispose<NetworkAwareDataNotifier, Data>(
+  () => NetworkAwareDataNotifier(),
+);
 ```
 
 <div dir="rtl">
@@ -740,8 +824,7 @@ class NetworkAwareData extends _$NetworkAwareData {
 
 ```dart
 // ❌ WRONG - Keeping everything alive
-@riverpod
-class TemporaryFormState extends _$TemporaryFormState {
+class TemporaryFormStateNotifier extends Notifier<FormData> {
   @override
   FormData build() {
     ref.keepAlive(); // Unnecessary!
@@ -749,15 +832,22 @@ class TemporaryFormState extends _$TemporaryFormState {
   }
 }
 
+final temporaryFormStateProviderWrong = NotifierProvider.autoDispose<TemporaryFormStateNotifier, FormData>(
+  () => TemporaryFormStateNotifier(),
+);
+
 // ✅ CORRECT - Let AutoDispose work
-@riverpod
-class TemporaryFormState extends _$TemporaryFormState {
+class TemporaryFormStateNotifier2 extends Notifier<FormData> {
   @override
   FormData build() {
     // No keepAlive - disposed when form closes
     return FormData.empty();
   }
 }
+
+final temporaryFormStateProvider = NotifierProvider.autoDispose<TemporaryFormStateNotifier2, FormData>(
+  () => TemporaryFormStateNotifier2(),
+);
 ```
 
 <div dir="rtl">
@@ -768,8 +858,7 @@ class TemporaryFormState extends _$TemporaryFormState {
 
 ```dart
 // ❌ WRONG - Resources not cleaned
-@riverpod
-class LeakyProvider extends _$LeakyProvider {
+class LeakyProviderNotifier extends StreamNotifier<Data> {
   @override
   Stream<Data> build() {
     final controller = StreamController<Data>();
@@ -783,9 +872,12 @@ class LeakyProvider extends _$LeakyProvider {
   }
 }
 
+final leakyProvider = StreamNotifierProvider.autoDispose<LeakyProviderNotifier, Data>(
+  () => LeakyProviderNotifier(),
+);
+
 // ✅ CORRECT - Proper cleanup
-@riverpod
-class CleanProvider extends _$CleanProvider {
+class CleanProviderNotifier extends StreamNotifier<Data> {
   Timer? _timer;
   StreamController<Data>? _controller;
 
@@ -805,6 +897,10 @@ class CleanProvider extends _$CleanProvider {
     return _controller!.stream;
   }
 }
+
+final cleanProvider = StreamNotifierProvider.autoDispose<CleanProviderNotifier, Data>(
+  () => CleanProviderNotifier(),
+);
 ```
 
 <div dir="rtl">
@@ -815,8 +911,7 @@ class CleanProvider extends _$CleanProvider {
 
 ```dart
 // ❌ WRONG - Link never closed
-@riverpod
-class EternalCache extends _$EternalCache {
+class EternalCacheNotifier extends AsyncNotifier<Data> {
   @override
   Future<Data> build() async {
     final link = ref.keepAlive();
@@ -824,11 +919,19 @@ class EternalCache extends _$EternalCache {
 
     return await fetchData();
   }
+
+  Future<Data> fetchData() async {
+    await Future.delayed(Duration(seconds: 1));
+    return Data();
+  }
 }
 
+final eternalCacheProvider = AsyncNotifierProvider.autoDispose<EternalCacheNotifier, Data>(
+  () => EternalCacheNotifier(),
+);
+
 // ✅ CORRECT - Always close the link
-@riverpod
-class TimedCache extends _$TimedCache {
+class TimedCacheNotifier extends AsyncNotifier<Data> {
   @override
   Future<Data> build() async {
     final link = ref.keepAlive();
@@ -840,7 +943,16 @@ class TimedCache extends _$TimedCache {
 
     return await fetchData();
   }
+
+  Future<Data> fetchData() async {
+    await Future.delayed(Duration(seconds: 1));
+    return Data();
+  }
 }
+
+final timedCacheProvider = AsyncNotifierProvider.autoDispose<TimedCacheNotifier, Data>(
+  () => TimedCacheNotifier(),
+);
 ```
 
 <div dir="rtl">
@@ -855,14 +967,17 @@ class TimedCache extends _$TimedCache {
 
 ```dart
 // ✅ Good: Let AutoDispose work for UI state
-@riverpod
-class PageState extends _$PageState {
+class PageStateNotifier extends Notifier<State> {
   @override
   State build() {
     // No keepAlive - perfect!
     return State.initial();
   }
 }
+
+final pageStateProvider = NotifierProvider.autoDispose<PageStateNotifier, State>(
+  () => PageStateNotifier(),
+);
 ```
 
 <div dir="rtl">
@@ -873,14 +988,17 @@ class PageState extends _$PageState {
 
 ```dart
 // ✅ Good: KeepAlive for truly global state
-@riverpod
-class AppTheme extends _$AppTheme {
+class AppThemeNotifier extends Notifier<ThemeData> {
   @override
   ThemeData build() {
     ref.keepAlive(); // Makes sense here
     return ThemeData.light();
   }
 }
+
+final appThemeProvider = NotifierProvider.autoDispose<AppThemeNotifier, ThemeData>(
+  () => AppThemeNotifier(),
+);
 ```
 
 <div dir="rtl">
@@ -891,8 +1009,7 @@ class AppTheme extends _$AppTheme {
 
 ```dart
 // ✅ Good: Time-limited cache
-@riverpod
-class CachedData extends _$CachedData {
+class CachedDataNotifier extends AsyncNotifier<Data> {
   @override
   Future<Data> build() async {
     final link = ref.keepAlive();
@@ -902,7 +1019,16 @@ class CachedData extends _$CachedData {
 
     return await fetchData();
   }
+
+  Future<Data> fetchData() async {
+    await Future.delayed(Duration(seconds: 1));
+    return Data();
+  }
 }
+
+final cachedDataProvider = AsyncNotifierProvider.autoDispose<CachedDataNotifier, Data>(
+  () => CachedDataNotifier(),
+);
 ```
 
 <div dir="rtl">
@@ -913,8 +1039,7 @@ class CachedData extends _$CachedData {
 
 ```dart
 // ✅ Good: Always cleanup
-@riverpod
-class ResourceManager extends _$ResourceManager {
+class ResourceManagerNotifier extends Notifier<Data> {
   late final subscription;
 
   @override
@@ -929,7 +1054,13 @@ class ResourceManager extends _$ResourceManager {
 
     return Data.initial();
   }
+
+  Stream<Data> get stream => Stream.periodic(Duration(seconds: 1), (_) => Data());
 }
+
+final resourceManagerProvider = NotifierProvider.autoDispose<ResourceManagerNotifier, Data>(
+  () => ResourceManagerNotifier(),
+);
 ```
 
 <div dir="rtl">
