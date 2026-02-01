@@ -165,15 +165,18 @@ Consumer(
   },
 );
 
-// Or with code generation
-@riverpod
-class Counter extends _$Counter {
+// Riverpod classic syntax
+class Counter3Notifier extends Notifier<int> {
   @override
   int build() => 0;
 
   void increment() => state++;
   void decrement() => state--;
 }
+
+final counter3Provider = NotifierProvider<Counter3Notifier, int>(
+  () => Counter3Notifier(),
+);
 ```
 
 <div dir="rtl">
@@ -243,8 +246,7 @@ class TodosState with _$TodosState {
   }) = _TodosState;
 }
 
-@riverpod
-class Todos extends _$Todos {
+class TodosNotifier extends Notifier<TodosState> {
   @override
   TodosState build() {
     return const TodosState(todos: []);
@@ -265,6 +267,10 @@ class Todos extends _$Todos {
     state = state.copyWith(todos: [...state.todos, todo]);
   }
 }
+
+final todosProvider = NotifierProvider<TodosNotifier, TodosState>(
+  () => TodosNotifier(),
+);
 ```
 
 <div dir="rtl">
@@ -373,8 +379,7 @@ class LoginState with _$LoginState {
   const factory LoginState.failure(String error) = _Failure;
 }
 
-@riverpod
-class Login extends _$Login {
+class Login2Notifier extends Notifier<LoginState> {
   String _email = '';
   String _password = '';
 
@@ -404,6 +409,10 @@ class Login extends _$Login {
     }
   }
 }
+
+final login2Provider = NotifierProvider<Login2Notifier, LoginState>(
+  () => Login2Notifier(),
+);
 ```
 
 <div dir="rtl">
@@ -630,15 +639,23 @@ void main() {
 
 ```dart
 // Access BLoC from Riverpod provider
-@riverpod
-class SomeFeature extends _$SomeFeature {
+class SomeFeatureNotifier extends AsyncNotifier<Data> {
   @override
-  FutureOr<Data> build() async {
+  Future<Data> build() async {
     // Can't directly access BLoC here
     // Use callback or pass as dependency
     return await fetchData();
   }
+
+  Future<Data> fetchData() async {
+    await Future.delayed(Duration(seconds: 1));
+    return Data();
+  }
 }
+
+final someFeatureProvider = AsyncNotifierProvider<SomeFeatureNotifier, Data>(
+  () => SomeFeatureNotifier(),
+);
 
 // Better: Create bridge provider
 final userBlocProvider = Provider<UserBloc>((ref) {
@@ -741,8 +758,7 @@ Cleanup:
 // Problem: Lost event tracking from BLoC
 
 // Solution 1: Add logging
-@riverpod
-class Todos extends _$Todos {
+class Todos2Notifier extends Notifier<TodosState> {
   @override
   TodosState build() => TodosState.initial();
 
@@ -754,6 +770,10 @@ class Todos extends _$Todos {
     state = state.copyWith(todos: [...state.todos, todo]);
   }
 }
+
+final todos2Provider = NotifierProvider<Todos2Notifier, TodosState>(
+  () => Todos2Notifier(),
+);
 
 // Solution 2: Use BlocObserver equivalent
 class RiverpodObserver extends ProviderObserver {
@@ -791,12 +811,16 @@ on<SearchQueryChanged>(
 );
 
 // Riverpod Solution
-@riverpod
-class Search extends _$Search {
+class Search2Notifier extends Notifier<List<Result>> {
   Timer? _debounceTimer;
 
   @override
-  List<Result> build() => [];
+  List<Result> build() {
+    ref.onDispose(() {
+      _debounceTimer?.cancel();
+    });
+    return [];
+  }
 
   void search(String query) {
     _debounceTimer?.cancel();
@@ -809,13 +833,11 @@ class Search extends _$Search {
     final results = await api.search(query);
     state = results;
   }
-
-  @override
-  void dispose() {
-    _debounceTimer?.cancel();
-    super.dispose();
-  }
 }
+
+final search2Provider = NotifierProvider<Search2Notifier, List<Result>>(
+  () => Search2Notifier(),
+);
 ```
 
 <div dir="rtl">

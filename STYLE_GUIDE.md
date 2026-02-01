@@ -1,0 +1,720 @@
+# Style Guide - دليل الكتابة
+
+## 📌 القواعد الأساسية
+
+### 1. RTL Direction (اتجاه الكتابة من اليمين)
+
+**القاعدة الذهبية:** كل سطر لازم يبدأ بنص عربي - مش رقم، مش رمز، مش مسافة.
+
+#### ✅ صح:
+
+```markdown
+<div dir="rtl">
+
+في المثال ده هنشوف إزاي نستخدم Provider:
+
+</div>
+
+```dart
+@riverpod
+class Counter extends _$Counter {
+  @override
+  int build() => 0;
+}
+```
+
+<div dir="rtl">
+
+الكود ده بيعمل provider بسيط للعداد.
+```
+
+#### ❌ غلط:
+
+```markdown
+<div dir="rtl">
+
+1. في المثال ده...  ❌ (بدأ برقم)
+- في المثال ده...   ❌ (بدأ بشرطة)
+  في المثال ده...   ❌ (بدأ بمسافة)
+```
+
+#### الحل:
+
+```markdown
+<div dir="rtl">
+
+**أولاً:** في المثال ده...  ✅
+**النقطة الأولى:** في المثال ده...  ✅
+في المثال ده:  ✅
+- النقطة الأولى: في المثال ده...  ✅
+```
+
+---
+
+### 2. المصطلحات التقنية
+
+**القاعدة:** متترجمش المصطلحات التقنية - اكتبها بالإنجليزي مع شرح بسيط بالعربي.
+
+#### ✅ صح:
+
+```markdown
+في الملف ده هنتكلم عن **State Management** - وده مصطلح بيعني إزاي نتحكم في بيانات التطبيق ونشاركها بين الـ widgets.
+
+الـ **Provider** ده زي الحاوية (container) اللي بتحفظ data وتشاركها مع الـ widgets اللي محتاجاها.
+
+**Immutability** معناها إن البيانات ما بتتغيرش - بنعمل نسخة جديدة بدل ما نعدل القديمة.
+```
+
+#### ❌ غلط:
+
+```markdown
+في الملف ده هنتكلم عن إدارة الحالة  ❌
+
+المزود ده زي الحاوية...  ❌
+
+الثبات معناها...  ❌
+```
+
+#### قائمة المصطلحات الشائعة:
+
+| المصطلح | الاستخدام الصحيح | ❌ تجنب |
+|---------|------------------|---------|
+| State Management | State Management (إدارة بيانات التطبيق) | إدارة الحالة |
+| Provider | Provider | مزود / موفر |
+| Widget | Widget | عنصر واجهة |
+| State | State | حالة |
+| Immutability | Immutability (البيانات اللي ما بتتغيرش) | الثبات |
+| Build Context | BuildContext | سياق البناء |
+| Lifecycle | Lifecycle (دورة الحياة) | دورة الحياة |
+| Dependency Injection | Dependency Injection (DI) | حقن التبعيات |
+| Cache | Cache | ذاكرة تخزين مؤقت |
+
+**ملحوظة:** لو المصطلح معروف ومفهوم (زي "function" أو "class")، استخدمه عادي بدون شرح.
+
+---
+
+### 3. مستوى الأمثلة حسب القسم
+
+**القاعدة:** كل قسم له مستوى معين - ما تستخدمش مفاهيم لسه ما اتشرحتش.
+
+#### Section 00-02: مستوى تمهيدي
+
+**المسموح:**
+- `setState`
+- مفاهيم عامة عن State Management
+- أمثلة بسيطة جداً
+- شرح نظري للمقارنات
+
+**الممنوع:**
+- تفاصيل Providers
+- Code generation (`@riverpod`)
+- Notifier classes
+- أي implementation details
+
+**مثال صح:**
+
+```dart
+// Section 02: مقارنة بسيطة
+// BLoC approach (مفهوم عام)
+// تبعت event → تستقبل state جديد
+
+// Riverpod approach (مفهوم عام)
+// تقرأ provider → يتحدث تلقائياً
+```
+
+**مثال غلط:**
+
+```dart
+// ❌ Section 02 - تفاصيل كتير!
+@riverpod
+class TodosList extends _$TodosList {
+  @override
+  Future<List<Todo>> build() async {
+    return await api.getTodos();
+  }
+}
+```
+
+#### Section 03-05: مستوى مبتدئ (Classic Syntax)
+
+**المسموح:**
+- Classic Provider syntax فقط
+- Provider, StateProvider, FutureProvider, StreamProvider
+- `ref.watch`, `ref.read`
+- ConsumerWidget
+- أمثلة بسيطة (Counter, Todo)
+
+**الممنوع:**
+- Code generation (`@riverpod`)
+- Notifier classes
+- Family modifier
+- AutoDispose details (إلا لو شرح نظري بسيط)
+
+#### Section 06: Code Generation Introduction
+
+**المسموح:**
+- شرح build_runner setup
+- مقارنة classic vs code generation
+- Migration من classic لـ code generation
+- أول أمثلة بسيطة بالـ `@riverpod`
+
+#### Section 07+: مستوى متوسط ومتقدم (Code Generation)
+
+**المسموح:**
+- كل الـ modifiers
+- Notifier و AsyncNotifier
+- Advanced patterns
+- Performance optimization
+- Complex examples
+
+---
+
+### 4. Riverpod Syntax Progression (CRITICAL!)
+
+**القاعدة الأهم:** في تسلسل محدد لتعليم Riverpod - لازم نلتزم بيه!
+
+#### 🔵 Phase 1: Classic Syntax (Sections 00-05)
+
+**المسموح في Sections 00-05:**
+
+```dart
+// Provider - for read-only/computed values
+final nameProvider = Provider<String>((ref) {
+  return 'Ahmed';
+});
+
+final doubledProvider = Provider<int>((ref) {
+  final count = ref.watch(counterProvider);
+  return count * 2;
+});
+
+// StateProvider - for simple mutable state
+final counterProvider = StateProvider<int>((ref) => 0);
+
+// Usage
+ref.read(counterProvider.notifier).state = 5;
+
+// FutureProvider - for one-time async data
+final userProvider = FutureProvider<User>((ref) async {
+  return await api.getUser();
+});
+
+// StreamProvider - for continuous data streams
+final messagesProvider = StreamProvider<Message>((ref) {
+  return chatService.messages();
+});
+```
+
+**الهدف:** المتعلم يفهم المفاهيم الأساسية بدون تعقيد code generation.
+
+---
+
+#### 🟢 Phase 2: Code Generation Introduction (Section 06)
+
+**في Section 06 بس - نشرح الانتقال:**
+
+```dart
+// Before: Classic syntax
+final counterProvider = StateProvider<int>((ref) => 0);
+
+// After: Code generation
+@riverpod
+class Counter extends _$Counter {
+  @override
+  int build() => 0;
+
+  void increment() => state++;
+}
+```
+
+**نشرح:**
+- إزاي نعمل setup لـ build_runner
+- الفرق بين الطريقتين
+- مميزات code generation (type safety, less boilerplate)
+
+---
+
+#### 🟡 Phase 3: Modern Riverpod 3 (Sections 07+)
+
+**المسموح في Sections 07+:**
+
+```dart
+// Simple provider (read-only)
+@riverpod
+int doubled(DoubledRef ref) {
+  final count = ref.watch(counterProvider);
+  return count * 2;
+}
+
+// Notifier - for synchronous mutable state
+@riverpod
+class Counter extends _$Counter {
+  @override
+  int build() => 0;
+
+  void increment() => state++;
+  void decrement() => state--;
+  void reset() => state = 0;
+}
+
+// AsyncNotifier - for asynchronous mutable state
+@riverpod
+class Todos extends _$Todos {
+  @override
+  Future<List<Todo>> build() async {
+    return await api.getTodos();
+  }
+
+  Future<void> addTodo(Todo todo) async {
+    state = const AsyncLoading();
+    state = await AsyncValue.guard(() async {
+      await api.addTodo(todo);
+      return await api.getTodos();
+    });
+  }
+}
+
+// FutureProvider with parameters (Family)
+@riverpod
+Future<Product> product(ProductRef ref, String id) async {
+  return await api.getProduct(id);
+}
+
+// StreamProvider
+@riverpod
+Stream<Message> messages(MessagesRef ref) {
+  return chatService.messages();
+}
+```
+
+**الهدف:** استخدام أحدث وأفضل practices في Riverpod 3.
+
+---
+
+#### 🔴 FORBIDDEN - StateNotifier (Legacy!)
+
+**ممنوع تماماً** في كل الأقسام (ما عدا Migration Guide):
+
+```dart
+// ❌ StateNotifier - THIS IS LEGACY! DO NOT USE!
+class CounterNotifier extends StateNotifier<int> {
+  CounterNotifier() : super(0);
+  void increment() => state = state + 1;
+}
+
+final counterProvider = StateNotifierProvider<CounterNotifier, int>((ref) {
+  return CounterNotifier();
+});
+```
+
+**ليه ممنوع؟**
+- StateNotifier كان في Riverpod 2.x
+- Riverpod 3 عنده **Notifier** و **AsyncNotifier** أفضل
+- الـ official docs بتقول استخدم Notifier بدلها
+
+**الاستثناء الوحيد:** Section 13 (Migration Guides) - نشرح إزاي تعمل migrate من StateNotifier لـ Notifier.
+
+---
+
+#### 📋 Summary - متى تستخدم إيه؟
+
+| القسم | Syntax المسموح | الهدف |
+|------|----------------|-------|
+| **00-02** | مفاهيم نظرية، pseudo-code | فهم State Management |
+| **03-05** | Classic (Provider, StateProvider, etc.) | تعلم Basics بدون complexity |
+| **06** | Classic + Code Generation (المقارنة) | الانتقال بين الطريقتين |
+| **07+** | Code Generation (Notifier, AsyncNotifier) | Modern Riverpod 3 |
+| **13** | Migration: StateNotifier → Notifier | Legacy migration فقط |
+
+---
+
+#### ⚠️ ملحوظات مهمة
+
+**ملحوظة 1:** لو Section 00 فيه Quick Start، لازم يكون **classic syntax** - مش code generation! Quick start لازم يكون بسيط بدون build_runner.
+
+**ملحوظة 2:** في Section 02 (Comparisons)، ممكن نذكر إن Riverpod عنده طريقتين، بس **ما نستخدمش** تفاصيل - بس مفاهيم عامة.
+
+**ملحوظة 3:** StateProvider في classic syntax **مقبول** للتعليم - بس في Sections 03-05 فقط. بعد كده نستخدم Notifier.
+
+---
+
+#### ✅ قاعدة ذهبية
+
+> **قبل ما تكتب أي مثال، اسأل نفسك:**
+> - القسم ده رقم كام؟
+> - المتعلم وصل لـ code generation ولا لسه؟
+> - هل المثال ده مناسب لمستوى القسم؟
+>
+> **لو مش متأكد → استخدم الـ syntax الأبسط!**
+
+---
+
+### 5. أسلوب الكتابة
+
+**القاعدة:** اكتب بالعامية المصرية كإنك بتشرح لصاحبك.
+
+#### ✅ صح:
+
+```markdown
+دلوقتي هنشوف إزاي نعمل provider بسيط.
+
+المثال ده بيوضح الفكرة بشكل أبسط.
+
+لو حصل error، الـ widget هيعرض رسالة للمستخدم.
+
+خد بالك إن الـ state لازم يكون immutable.
+```
+
+#### ❌ غلط:
+
+```markdown
+الآن سنرى كيفية إنشاء provider بسيط.  ❌ (فصحى)
+
+هذا المثال يوضح الفكرة بشكل أبسط.  ❌ (فصحى)
+```
+
+#### كلمات شائعة:
+
+| ✅ استخدم | ❌ تجنب |
+|----------|---------|
+| دلوقتي | الآن |
+| هنشوف | سنرى |
+| إزاي | كيف / كيفية |
+| لو | إذا |
+| عشان | لكي / من أجل |
+| ممكن | يمكن |
+| خد بالك | انتبه |
+| لازم | يجب |
+
+---
+
+### 6. تنظيم الملف
+
+**البنية المطلوبة:**
+
+```markdown
+<div dir="rtl">
+
+# عنوان الملف
+
+**المستوى**: 🟢 مبتدئ / 🟡 متوسط / 🔴 متقدم
+
+## 📌 المفاهيم الأساسية
+
+في الملف ده هنتكلم عن:
+- نقطة 1
+- نقطة 2
+- نقطة 3
+
+## 🎯 الهدف
+
+بعد ما تخلص القراءة، هتقدر:
+- هدف 1
+- هدف 2
+- هدف 3
+
+---
+
+## 🔍 القسم الأول
+
+شرح القسم بالعربي...
+
+</div>
+
+```dart
+// Code example with English comments only
+@riverpod
+class Example extends _$Example {
+  @override
+  int build() => 0;
+}
+```
+
+<div dir="rtl">
+
+شرح الكود بالعربي...
+
+---
+
+## 📝 ملخص
+
+نقاط رئيسية:
+- نقطة 1
+- نقطة 2
+
+---
+
+## 🔗 الخطوة الجاية
+
+في الملف الجاي هنتكلم عن...
+
+---
+
+## 📚 المصادر
+
+- [Link 1](url)
+- [Link 2](url)
+
+</div>
+```
+
+---
+
+### 7. Code Comments
+
+**القاعدة:** كل الـ comments في الكود بالإنجليزي فقط.
+
+#### ✅ صح:
+
+```dart
+@riverpod
+class Counter extends _$Counter {
+  @override
+  int build() {
+    // Initialize counter at 0
+    return 0;
+  }
+
+  void increment() {
+    // Increment the counter
+    state++;
+  }
+}
+```
+
+#### ❌ غلط:
+
+```dart
+@riverpod
+class Counter extends _$Counter {
+  @override
+  int build() {
+    // نبدأ العداد من 0  ❌
+    return 0;
+  }
+}
+```
+
+---
+
+### 8. Tables والقوائم
+
+**القاعدة:** الجداول والقوائم لازم يكونوا داخل `<div dir="rtl">`.
+
+#### ✅ صح:
+
+```markdown
+<div dir="rtl">
+
+| الميزة | Riverpod | BLoC |
+|-------|----------|------|
+| سهولة التعلم | ✅ سهل | 🟡 متوسط |
+| Performance | 🟢 ممتاز | 🟢 ممتاز |
+
+</div>
+```
+
+---
+
+### 9. Emojis
+
+**القاعدة:** استخدم emojis بس في:
+- عناوين الأقسام (📌, 🎯, 🔍)
+- تحديد المستوى (🟢, 🟡, 🔴)
+- الأيقونات الوظيفية (✅, ❌, ⚠️)
+
+**ممنوع** emojis في:
+- الكود
+- الشرح العادي
+- المصطلحات التقنية
+
+---
+
+## 📋 Checklist قبل الـ Commit
+
+قبل ما تعمل commit لأي ملف، تأكد من:
+
+**العامة:**
+- [ ] كل سطر نص بيبدأ بحرف عربي (RTL)
+- [ ] المصطلحات التقنية بالإنجليزي مع شرح
+- [ ] الكتابة بالعامية المصرية
+- [ ] Code comments بالإنجليزي فقط
+- [ ] البنية منظمة حسب Template
+- [ ] في قسم "الخطوة الجاية"
+- [ ] في قسم "المصادر"
+
+**حسب رقم القسم:**
+- [ ] Section 00-02: مفاهيم نظرية فقط (لا implementation)
+- [ ] Section 03-05: Classic syntax فقط (لا @riverpod)
+- [ ] Section 06: Classic + Code Generation (المقارنة)
+- [ ] Section 07+: Code Generation (Notifier/AsyncNotifier)
+- [ ] لا StateNotifier في أي مكان (إلا Migration Guide)
+- [ ] مستوى الأمثلة مناسب للقسم
+
+---
+
+## 🔄 تحديث الملفات القديمة
+
+عند مراجعة ملف قديم:
+
+1. **افتح الملف**
+2. **حدد رقم القسم** (Section number)
+3. **راجع كل قاعدة** من القواعد فوق
+4. **صلح المشاكل حسب القسم**:
+
+   **لو Section 00-02:**
+   - امسح أي Riverpod implementation details
+   - استخدم pseudo-code أو مفاهيم نظرية
+   - ترجمات → مصطلحات إنجليزي
+   - RTL issues → اتجاه صحيح
+
+   **لو Section 03-05:**
+   - `@riverpod` → Classic syntax (Provider, StateProvider, etc.)
+   - StateNotifier → StateProvider (مؤقت للتعليم)
+   - Notifier → StateProvider
+   - امسح أي code generation
+   - ترجمات → مصطلحات إنجليزي
+   - RTL issues → اتجاه صحيح
+
+   **لو Section 06:**
+   - اعرض الطريقتين (Classic + Code Generation)
+   - اشرح المقارنة والانتقال
+   - StateNotifier → Notifier
+
+   **لو Section 07+:**
+   - StateNotifier → Notifier
+   - Classic syntax → Code generation
+   - استخدم `@riverpod` مع Notifier/AsyncNotifier
+   - ترجمات → مصطلحات إنجليزي
+   - RTL issues → اتجاه صحيح
+
+5. **Commit** بـ message واضح عن التعديلات
+
+---
+
+## ✅ أمثلة كاملة
+
+### مثال: Section 02 (Comparison - مبتدئ)
+
+```markdown
+<div dir="rtl">
+
+# المقارنة بين Riverpod و BLoC
+
+**المستوى**: 🟡 متوسط
+
+## 📌 المفاهيم الأساسية
+
+في الملف ده هنقارن بين Riverpod و BLoC من حيث:
+- الأسلوب (Pattern)
+- سهولة الاستخدام
+- Performance
+- Use cases
+
+## 🎯 الهدف
+
+بعد ما تخلص القراءة، هتقدر:
+- تفهم الفرق الأساسي بين النهجين
+- تختار الحل المناسب لمشروعك
+- تعرف مميزات وعيوب كل حل
+
+---
+
+## 🔍 الفرق الأساسي
+
+### Riverpod - Reactive Pattern
+
+الفكرة الأساسية في Riverpod إنك بتقرأ (read) الـ data، والـ UI بتتحدث تلقائياً لما الـ data تتغير.
+
+**مثال بسيط جداً:**
+
+</div>
+
+```dart
+// Riverpod: Direct state access
+// The widget rebuilds automatically when state changes
+final count = ref.watch(counterProvider);
+```
+
+<div dir="rtl">
+
+### BLoC - Event-Driven Pattern
+
+الفكرة الأساسية في BLoC إنك بتبعت Events، والـ BLoC بيرد عليك بـ States جديدة.
+
+**مثال بسيط جداً:**
+
+</div>
+
+```dart
+// BLoC: Send events, receive states
+bloc.add(IncrementEvent());
+// BLoC processes event and returns new state
+```
+
+<div dir="rtl">
+
+**الفرق بإختصار:**
+- **Riverpod:** اقرأ → تحديث تلقائي
+- **BLoC:** ابعت event → استقبل state
+
+---
+
+## 📊 المقارنة
+
+| الجانب | Riverpod | BLoC |
+|-------|----------|------|
+| **التعلم** | أسهل للمبتدئين | Learning curve أعلى |
+| **الكود** | أقل boilerplate | Boilerplate أكثر |
+| **Pattern** | Reactive | Event-Driven |
+| **Best for** | معظم التطبيقات | Enterprise apps |
+
+---
+
+## 💡 متى تستخدم إيه؟
+
+### استخدم Riverpod لو:
+- تطبيق جديد
+- عايز حل سريع وبسيط
+- الـ team مش كلهم خبرة
+
+### استخدم BLoC لو:
+- محتاج audit trail (تسجيل كل action)
+- عندك requirements معقدة للـ state flow
+- الـ team متمكن من Reactive programming
+
+---
+
+## 📝 ملخص
+
+**Riverpod:**
+- ✅ أبسط وأسرع
+- ✅ Boilerplate أقل
+- 🟡 Reactive pattern
+
+**BLoC:**
+- ✅ Event-driven (كل action موثق)
+- ✅ Testable جداً
+- 🟡 Boilerplate أكثر
+
+**الخلاصة:** للمشاريع العادية → Riverpod، للـ Enterprise → BLoC
+
+---
+
+## 🔗 الخطوة الجاية
+
+في الملف الجاي هنتعلم إزاي نختار بين كل الحلول المتاحة.
+
+---
+
+## 📚 المصادر
+
+- [Riverpod Documentation](https://riverpod.dev)
+- [BLoC Documentation](https://bloclibrary.dev)
+
+</div>
+```
+
+---
+
+**ملحوظة نهائية:** الـ Style Guide ده living document - هنحدثه لما نلاقي patterns جديدة أو improvements.

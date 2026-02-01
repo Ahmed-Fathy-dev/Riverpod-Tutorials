@@ -518,13 +518,16 @@ final themeProvider = StateProvider<bool>((ref) => false);
 
 // ✅ Great DX (Minimal code)
 // Riverpod: Everything in one place
-@riverpod
-class Counter extends _$Counter {
+class CounterNotifier extends Notifier<int> {
   @override
   int build() => 0;
 
   void increment() => state++;
 }
+
+final counterProvider = NotifierProvider<CounterNotifier, int>(
+  () => CounterNotifier(),
+);
 ```
 
 <div dir="rtl">
