@@ -1,12 +1,12 @@
 <div dir="rtl">
 
-# دليل البدء السريع (10 دقائق) 🚀
+# دليل البدء السريع (5 دقائق) 🚀
 
 **المستوى**: 🟢 مبتدئ
 
 ## 🎯 الهدف
 
-في الدليل السريع ده، هنعمل أول تطبيق Riverpod كامل وشغال في **أقل من 10 دقايق**!
+في الدليل السريع ده، هنعمل أول تطبيق Riverpod كامل وشغال في **أقل من 5 دقايق**!
 
 ## 📌 هتتعلم إيه
 
@@ -40,18 +40,11 @@ dependencies:
   flutter:
     sdk: flutter
   flutter_riverpod: ^3.0.0
-  riverpod_annotation: ^3.0.0
-
-dev_dependencies:
-  flutter_test:
-    sdk: flutter
-  build_runner: ^2.4.0
-  riverpod_generator: ^3.0.0
-  riverpod_lint: ^3.0.0
-  custom_lint: ^0.6.0
 ```
 
 <div dir="rtl">
+
+**ملحوظة:** في Quick Start ده هنستخدم الطريقة الكلاسيكية (Classic Syntax) عشان تكون بسيطة. في Section 06 هنتعلم طريقة أحدث باستخدام Code Generation.
 
 بعدين نفذ الأمر ده عشان تحمل الـ packages:
 
@@ -65,72 +58,7 @@ flutter pub get
 
 ## 💻 كود التطبيق الكامل
 
-### الخطوة 3: اعمل ملف الـ Provider
-
-اعمل ملف جديد اسمه `lib/counter_provider.dart`:
-
-</div>
-
-```dart
-import 'package:riverpod_annotation/riverpod_annotation.dart';
-
-// IMPORTANT: This line is required for code generation
-// The generated file will be named counter_provider.g.dart
-part 'counter_provider.g.dart';
-
-// Create a simple counter provider using @riverpod annotation
-@riverpod
-class Counter extends _$Counter {
-  // The build method returns the initial state
-  @override
-  int build() {
-    return 0; // Counter starts at 0
-  }
-
-  // Method to increment the counter
-  void increment() {
-    state++;
-  }
-
-  // Method to decrement the counter
-  void decrement() {
-    state--;
-  }
-
-  // Method to reset the counter
-  void reset() {
-    state = 0;
-  }
-}
-```
-
-<div dir="rtl">
-
-### الخطوة 4: اعمل Code Generation
-
-دلوقتي لازم نعمل generate للكود. نفذ الأمر ده:
-
-</div>
-
-```bash
-dart run build_runner build
-```
-
-<div dir="rtl">
-
-الأمر ده هيعمل ملف `counter_provider.g.dart` جنب ملف `counter_provider.dart`. ده الملف اللي فيه الكود المُولّد تلقائياً.
-
-**ملحوظة:** لو عايز الـ generator يشتغل تلقائياً كل ما تعدل على الكود، استخدم:
-
-</div>
-
-```bash
-dart run build_runner watch
-```
-
-<div dir="rtl">
-
-### الخطوة 5: اعمل ملف الـ main
+### الخطوة 3: اعمل الـ main.dart
 
 افتح ملف `lib/main.dart` واستبدل كل اللي فيه بالكود ده:
 
@@ -139,7 +67,10 @@ dart run build_runner watch
 ```dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'counter_provider.dart';
+
+// Create a simple counter provider
+// StateProvider is perfect for simple state that can be modified
+final counterProvider = StateProvider<int>((ref) => 0);
 
 // Wrap the app with ProviderScope
 // ProviderScope is required at the root of your app
@@ -208,8 +139,8 @@ class CounterPage extends ConsumerWidget {
                 FloatingActionButton(
                   heroTag: 'decrement',
                   onPressed: () {
-                    // Call the decrement method
-                    ref.read(counterProvider.notifier).decrement();
+                    // Modify the state using .notifier.state
+                    ref.read(counterProvider.notifier).state--;
                   },
                   child: const Icon(Icons.remove),
                 ),
@@ -217,8 +148,8 @@ class CounterPage extends ConsumerWidget {
                 // Reset button
                 ElevatedButton.icon(
                   onPressed: () {
-                    // Call the reset method
-                    ref.read(counterProvider.notifier).reset();
+                    // Reset the state to 0
+                    ref.read(counterProvider.notifier).state = 0;
                   },
                   icon: const Icon(Icons.refresh),
                   label: const Text('Reset'),
@@ -228,8 +159,8 @@ class CounterPage extends ConsumerWidget {
                 FloatingActionButton(
                   heroTag: 'increment',
                   onPressed: () {
-                    // Call the increment method
-                    ref.read(counterProvider.notifier).increment();
+                    // Modify the state using .notifier.state
+                    ref.read(counterProvider.notifier).state++;
                   },
                   child: const Icon(Icons.add),
                 ),
@@ -245,7 +176,7 @@ class CounterPage extends ConsumerWidget {
 
 <div dir="rtl">
 
-### الخطوة 6: شغل التطبيق
+### الخطوة 4: شغل التطبيق
 
 </div>
 
@@ -273,24 +204,20 @@ flutter run
 </div>
 
 ```dart
-@riverpod
-class Counter extends _$Counter {
-  @override
-  int build() => 0;
-
-  void increment() => state++;
-  void decrement() => state--;
-  void reset() => state = 0;
-}
+final counterProvider = StateProvider<int>((ref) => 0);
 ```
 
 <div dir="rtl">
 
 **إيه اللي بيحصل هنا:**
-- **`@riverpod`**: annotation بتقول للـ generator إنشئ provider من الـ class ده
-- **`Counter extends _$Counter`**: بنرث من generated base class
-- **`build()`**: بترجع الـ initial state (القيمة الأولية)
-- **Methods**: كل method بتعدل على `state` - الـ UI بتتحدث تلقائياً
+- **`StateProvider<int>`**: نوع provider للـ state البسيط اللي ممكن يتعدل
+- **`(ref) => 0`**: دالة بترجع القيمة الأولية (Initial state) = 0
+- **`final counterProvider`**: المتغير اللي هنستخدمه عشان نوصل للـ provider
+
+**ليه StateProvider؟**
+- بسيط جداً للـ state الأساسي (زي الأرقام، Strings، Booleans)
+- بيسمحلك تقرأ وتعدل القيمة بسهولة
+- مثالي للمبتدئين
 
 ### الجزء 2: ProviderScope
 
@@ -312,6 +239,8 @@ void main() {
 - **`ProviderScope`**: لازم يكون في root الـ app
 - بيعمل container لكل الـ providers
 - بدونه، الـ providers مش هتشتغل
+
+**مهم:** ProviderScope لازم يكون wrapper للـ app كله - ده شرط أساسي!
 
 ### الجزء 3: ConsumerWidget
 
@@ -335,6 +264,8 @@ class CounterPage extends ConsumerWidget {
 - **`ref.watch(counterProvider)`**: بتقرأ القيمة وتتابع التغييرات
 - الـ widget بيعمل rebuild تلقائي لما القيمة تتغير
 
+**ملحوظة:** ممكن تستخدم `Consumer` widget لو مش عايز تحول الـ class كله.
+
 ### الجزء 4: Reading vs Watching
 
 </div>
@@ -343,55 +274,41 @@ class CounterPage extends ConsumerWidget {
 // For reading and rebuilding on changes
 final count = ref.watch(counterProvider);
 
-// For calling methods (no rebuild)
-ref.read(counterProvider.notifier).increment();
+// For modifying the state (no rebuild)
+ref.read(counterProvider.notifier).state = 5;
 ```
 
 <div dir="rtl">
 
 **الفرق:**
-- **`ref.watch()`**: للقراءة + rebuild تلقائي
-- **`ref.read()`**: للقراءة مرة واحدة (في الـ event handlers)
+- **`ref.watch()`**: للقراءة + rebuild تلقائي لما القيمة تتغير
+- **`ref.read()`**: للقراءة أو التعديل مرة واحدة (في الـ event handlers)
 
----
+**قاعدة ذهبية:**
+- في الـ `build` method → استخدم `watch`
+- في الـ button handlers → استخدم `read`
 
-## ⚙️ Code Generation - إزاي بيشتغل؟
-
-لما تكتب:
-
-</div>
-
-```dart
-@riverpod
-class Counter extends _$Counter {
-  @override
-  int build() => 0;
-}
-```
-
-<div dir="rtl">
-
-الـ `build_runner` بيولّد كود زي ده تلقائياً:
+### الجزء 5: Modifying State
 
 </div>
 
 ```dart
-// counter_provider.g.dart (generated automatically)
-final counterProvider = CounterProvider();
+// Increment
+ref.read(counterProvider.notifier).state++;
 
-class CounterProvider extends AutoDisposeNotifierProvider<Counter, int> {
-  // Generated implementation...
-}
+// Set to specific value
+ref.read(counterProvider.notifier).state = 10;
 
-// Base class for Counter
-abstract class _$Counter extends AutoDisposeNotifier<int> {
-  // Generated implementation...
-}
+// Decrement
+ref.read(counterProvider.notifier).state--;
 ```
 
 <div dir="rtl">
 
-**الميزة:** إنت بتكتب كود أقل وأبسط، والـ generator بيعمل الباقي!
+**إيه اللي بيحصل هنا:**
+- **`.notifier`**: بيجيبلك الـ StateController
+- **`.state`**: القيمة الحالية
+- لما تعدل `.state`، كل الـ widgets اللي بتعمل watch بتتحدث تلقائياً
 
 ---
 
@@ -404,29 +321,11 @@ abstract class _$Counter extends AutoDisposeNotifier<int> {
 </div>
 
 ```dart
-@riverpod
-class Counter extends _$Counter {
-  @override
-  int build() => 0;
-
-  void increment() => state++;
-  void decrement() => state--;
-  void reset() => state = 0;
-
-  // Add this new method
-  void double() => state = state * 2;
-}
-```
-
-<div dir="rtl">
-
-بعدين ضيف الزرار في الـ UI:
-
-</div>
-
-```dart
 ElevatedButton(
-  onPressed: () => ref.read(counterProvider.notifier).double(),
+  onPressed: () {
+    // Double the current value
+    ref.read(counterProvider.notifier).state *= 2;
+  },
   child: const Text('Double'),
 ),
 ```
@@ -438,8 +337,8 @@ ElevatedButton(
 </div>
 
 ```dart
-@override
-int build() => 10; // Start from 10 instead of 0
+// Start from 10 instead of 0
+final counterProvider = StateProvider<int>((ref) => 10);
 ```
 
 <div dir="rtl">
@@ -449,11 +348,15 @@ int build() => 10; // Start from 10 instead of 0
 </div>
 
 ```dart
-void increment() {
-  if (state < 100) {  // Don't go above 100
-    state++;
-  }
-}
+FloatingActionButton(
+  onPressed: () {
+    final current = ref.read(counterProvider);
+    if (current < 100) {  // Don't go above 100
+      ref.read(counterProvider.notifier).state++;
+    }
+  },
+  child: const Icon(Icons.add),
+),
 ```
 
 <div dir="rtl">
@@ -462,35 +365,27 @@ void increment() {
 
 ## ⚠️ مشاكل شائعة والحلول
 
-### مشكلة 1: "part 'counter_provider.g.dart' doesn't exist"
+### مشكلة 1: "Could not find ProviderScope"
 
-**السبب:** ما عملتش `build_runner` بعد
-
-**الحل:**
-
-</div>
-
-```bash
-dart run build_runner build
-```
-
-<div dir="rtl">
-
-### مشكلة 2: "The getter 'counterProvider' isn't defined"
-
-**السبب:** مش عامل import للـ provider file
+**السبب:** نسيت تحط ProviderScope في الـ main
 
 **الحل:**
 
 </div>
 
 ```dart
-import 'counter_provider.dart';
+void main() {
+  runApp(
+    const ProviderScope(  // Don't forget this!
+      child: MyApp(),
+    ),
+  );
+}
 ```
 
 <div dir="rtl">
 
-### مشكلة 3: الـ UI مش بتتحدث
+### مشكلة 2: الـ UI مش بتتحدث
 
 **السبب:** استخدمت `ref.read()` بدل `ref.watch()`
 
@@ -504,6 +399,34 @@ final count = ref.watch(counterProvider);
 
 // ❌ Wrong: doesn't rebuild
 final count = ref.read(counterProvider);
+```
+
+<div dir="rtl">
+
+### مشكلة 3: "The argument type 'WidgetRef' can't be assigned"
+
+**السبب:** استخدمت `StatelessWidget` بدل `ConsumerWidget`
+
+**الحل:**
+
+</div>
+
+```dart
+// ✅ Correct
+class MyWidget extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    // ...
+  }
+}
+
+// ❌ Wrong
+class MyWidget extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    // No ref available!
+  }
+}
 ```
 
 <div dir="rtl">
@@ -524,7 +447,7 @@ Widget build(BuildContext context, WidgetRef ref) {
 
   return ElevatedButton(
     // ✅ Use read in event handlers
-    onPressed: () => ref.read(counterProvider.notifier).increment(),
+    onPressed: () => ref.read(counterProvider.notifier).state++,
     child: Text('$count'),
   );
 }
@@ -532,58 +455,68 @@ Widget build(BuildContext context, WidgetRef ref) {
 
 <div dir="rtl">
 
-### نصيحة 2: استخدام build_runner watch أثناء التطوير
+**ليه؟**
+- `watch` بيخلي الـ widget يتحدث لما القيمة تتغير
+- `read` بيقرأ القيمة مرة واحدة (أو يعدل عليها) بدون rebuild
 
-</div>
+### نصيحة 2: StateProvider للبيانات البسيطة فقط
 
-```bash
-# Run this once and leave it running
-dart run build_runner watch
-```
+**StateProvider مثالي لـ:**
+- ✅ Counter
+- ✅ Toggle (true/false)
+- ✅ Current tab index
+- ✅ Text field value
 
-<div dir="rtl">
+**لما البيانات تبقى معقدة، استخدم حاجة تانية:**
+- 🟡 List معقدة → استخدم Notifier (Section 06+)
+- 🟡 Async data → استخدم FutureProvider/AsyncNotifier
+- 🟡 Business logic → استخدم Notifier class
 
-ده هيخلي الـ code generation يحصل تلقائياً كل ما تعدل على الكود.
+### نصيحة 3: Classic vs Code Generation
 
-### نصيحة 3: Clean وRegenerate لو حصلت مشاكل
+**في Quick Start ده استخدمنا Classic Syntax عشان:**
+- ✅ أبسط للمبتدئين
+- ✅ ما يحتاجش build_runner setup
+- ✅ الكود واضح ومباشر
 
-</div>
-
-```bash
-# Clean old generated files
-dart run build_runner clean
-
-# Regenerate everything
-dart run build_runner build --delete-conflicting-outputs
-```
-
-<div dir="rtl">
+**في Section 06 هنتعلم Code Generation:**
+- ✅ Type safety أفضل
+- ✅ Less boilerplate
+- ✅ الطريقة المفضلة في المشاريع الكبيرة
 
 ---
 
 ## 📝 ملخص
 
 **اللي عملناه النهاردة:**
-1. ✅ نصبنا Riverpod 3 مع code generation
-2. ✅ عملنا أول Provider باستخدام `@riverpod`
+1. ✅ نصبنا Riverpod 3 (flutter_riverpod فقط)
+2. ✅ عملنا أول Provider باستخدام `StateProvider`
 3. ✅ قرينا الـ state باستخدام `ref.watch()`
-4. ✅ عدلنا الـ state باستخدام methods
+4. ✅ عدلنا الـ state باستخدام `.notifier.state`
 5. ✅ فهمنا الفرق بين `watch` و `read`
 
 **الـ concepts المهمة:**
 - **Provider**: الحاوية اللي بتحفظ وتشارك الـ state
-- **@riverpod**: Annotation للـ code generation
+- **StateProvider**: نوع provider للـ state البسيط
 - **ref.watch()**: للقراءة + rebuild
-- **ref.read()**: للقراءة في الـ events
+- **ref.read()**: للقراءة/التعديل في الـ events
 - **ProviderScope**: لازم يكون في root الـ app
+- **ConsumerWidget**: بدل StatelessWidget عشان توصل للـ ref
 
 ---
 
 ## 🔗 الخطوة الجاية
 
 دلوقتي بعد ما عرفت الأساسيات:
+
+**لو عايز تفهم أكتر:**
 - روح على `02-what-is-state-management.md` عشان تفهم State Management بعمق
-- أو ابدأ من Section 03 لو عايز تدخل في التفاصيل
+- أو ابدأ من Section 01 عشان تتعلم المبادئ الأساسية
+
+**لو عايز تطبق أكتر:**
+- جرب التجارب اللي فوق (Double, Validation, etc.)
+- حاول تعمل تطبيق Todo list بسيط
+- جرب تضيف providers تانية (مثلاً: theme mode, username)
 
 **افتكر:** ده كان quick start - في تفاصيل كتير هنتعلمها في الأقسام الجاية!
 
@@ -591,8 +524,8 @@ dart run build_runner build --delete-conflicting-outputs
 
 ## 📚 المصادر
 
-- [Riverpod Getting Started](https://riverpod.dev/docs/getting_started)
-- [Code Generation Guide](https://riverpod.dev/docs/concepts/about_code_generation)
-- [Riverpod Examples](https://github.com/rrousselGit/riverpod/tree/master/examples)
+- [Riverpod Official Documentation](https://riverpod.dev)
+- [StateProvider Guide](https://riverpod.dev/docs/providers/state_provider)
+- [Getting Started with Riverpod](https://riverpod.dev/docs/getting_started)
 
 </div>
