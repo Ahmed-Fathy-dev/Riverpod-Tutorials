@@ -239,9 +239,8 @@ class IncrementButton extends ConsumerWidget {
 
 // Total: ~15 lines of code
 
-// Or with code generation (even simpler!)
-@riverpod
-class Counter extends _$Counter {
+// Riverpod classic syntax (concise!)
+class Counter2Notifier extends Notifier<int> {
   @override
   int build() => 0;
 
@@ -250,7 +249,11 @@ class Counter extends _$Counter {
   void reset() => state = 0;
 }
 
-// Total: ~8 lines!
+final counter2Provider = NotifierProvider<Counter2Notifier, int>(
+  () => Counter2Notifier(),
+);
+
+// Total: ~12 lines!
 ```
 
 <div dir="rtl">
@@ -453,8 +456,7 @@ class LoginState with _$LoginState {
 }
 
 // 2. Notifier (20 lines)
-@riverpod
-class Login extends _$Login {
+class LoginNotifier extends Notifier<LoginState> {
   @override
   LoginState build() => const LoginState.initial();
 
@@ -478,6 +480,10 @@ class Login extends _$Login {
     state = const LoginState.initial();
   }
 }
+
+final loginProvider = NotifierProvider<LoginNotifier, LoginState>(
+  () => LoginNotifier(),
+);
 
 // 3. UI (simpler!)
 class LoginPage extends ConsumerWidget {
@@ -591,17 +597,24 @@ class SearchBloc extends Bloc<SearchEvent, SearchState> {
 }
 
 // With Riverpod: need manual debouncing
-@riverpod
-class Search extends _$Search {
+class SearchNotifier extends Notifier<String> {
   Timer? _debounceTimer;
+
+  @override
+  String build() => '';
 
   void search(String query) {
     _debounceTimer?.cancel();
     _debounceTimer = Timer(Duration(milliseconds: 300), () {
+      state = query;
       // Do search
     });
   }
 }
+
+final searchProvider = NotifierProvider<SearchNotifier, String>(
+  () => SearchNotifier(),
+);
 ```
 
 <div dir="rtl">

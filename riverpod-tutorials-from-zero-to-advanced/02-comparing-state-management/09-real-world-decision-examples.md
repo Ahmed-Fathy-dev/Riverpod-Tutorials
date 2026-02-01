@@ -411,13 +411,12 @@ Client طلب BLoC specifically:
 // Before (كان بيستخدم Provider)
 // New feature = 2 days
 
-// After Riverpod + codegen
+// After Riverpod
 // New feature = 4 hours!
 
-@riverpod
-class Courses extends _$Courses {
+class CoursesNotifier extends AsyncNotifier<List<Course>> {
   @override
-  FutureOr<List<Course>> build() {
+  Future<List<Course>> build() {
     return _repository.getCourses();
   }
 
@@ -425,7 +424,13 @@ class Courses extends _$Courses {
     await _repository.enroll(courseId);
     ref.invalidateSelf();
   }
+
+  CourseRepository get _repository => ref.read(courseRepositoryProvider);
 }
+
+final coursesProvider = AsyncNotifierProvider<CoursesNotifier, List<Course>>(
+  () => CoursesNotifier(),
+);
 
 // Clean, simple, fast to write
 ```
