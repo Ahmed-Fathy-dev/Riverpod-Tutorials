@@ -125,19 +125,23 @@ class HomePage extends StatelessWidget {
 
 ### الحل الصحيح
 
-استخدم State Management للوصول المباشر:
+استخدم State Management للوصول المباشر - أي widget يقدر يوصل للـ state بدون prop drilling:
 
 </div>
 
 ```dart
-// ✅ GOOD: Direct access with Riverpod
+// ✅ GOOD: Direct access with State Management solution
 
-final userProvider = StateProvider<User?>((ref) => null);
+// With any state management (Provider, Riverpod, BLoC, etc):
+// - User data stored in a centralized store
+// - Any widget can access it directly
+// - No need to pass through intermediate widgets
 
-class UserAvatar extends ConsumerWidget {
+class UserAvatar extends StatelessWidget {
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final user = ref.watch(userProvider);
+  Widget build(BuildContext context) {
+    // Access user directly from state management
+    final user = getUserFromState(); // Pseudo-code
 
     if (user == null) return SizedBox.shrink();
 
@@ -147,8 +151,10 @@ class UserAvatar extends ConsumerWidget {
   }
 }
 
-// No need to pass through 5 levels!
-// Other widgets don't even know about User
+// Benefits:
+// - No need to pass through 5 levels!
+// - Other widgets don't even know about User
+// - Easy to maintain and refactor
 ```
 
 <div dir="rtl">
@@ -228,30 +234,32 @@ class ExpensiveWidget extends StatelessWidget {
 
 ### الحل الصحيح
 
-استخدم State Management مع selective rebuilds:
+استخدم State Management مع selective rebuilds - كل widget يتابع بس الـ state اللي هو محتاجه:
 
 </div>
 
 ```dart
 // ✅ GOOD: Each widget only rebuilds when ITS data changes
 
-final counterProvider = StateProvider<int>((ref) => 0);
-final itemsProvider = StateProvider<List<String>>((ref) => []);
+// With State Management:
+// - Counter stored separately from items
+// - Each widget watches only what it needs
+// - Widgets rebuild independently
 
-class CounterDisplay extends ConsumerWidget {
+class CounterDisplay extends StatelessWidget {
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final counter = ref.watch(counterProvider);
+  Widget build(BuildContext context) {
+    final counter = getCounterFromState(); // Watches counter only
     print('CounterDisplay rebuilt'); // Only when counter changes
 
     return Text('Count: $counter');
   }
 }
 
-class ItemsList extends ConsumerWidget {
+class ItemsList extends StatelessWidget {
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final items = ref.watch(itemsProvider);
+  Widget build(BuildContext context) {
+    final items = getItemsFromState(); // Watches items only
     print('ItemsList rebuilt'); // Only when items change
 
     return ListView.builder(
@@ -278,6 +286,8 @@ class ExpensiveWidget extends StatelessWidget {
 - ItemsList بس يعمل rebuild لما items تتغير
 - ExpensiveWidget مش بيعمل rebuild أبداً
 - Performance أفضل بكتير
+
+**ملحوظة:** هنشوف implementation details في الأقسام الجاية (Riverpod, BLoC, إلخ)
 
 ---
 
@@ -393,43 +403,28 @@ void addToCart(Product product) {
 
 ### الحل الصحيح
 
-مصدر واحد للحقيقة (Single Source of Truth):
+مصدر واحد للحقيقة (Single Source of Truth) - كل الـ widgets تقرأ من نفس المكان:
 
 </div>
 
 ```dart
-// ✅ GOOD: Single source of truth
+// ✅ GOOD: Single source of truth with State Management
 
-final cartProvider = StateNotifierProvider<CartNotifier, List<CartItem>>((ref) {
-  return CartNotifier();
-});
+// Cart data stored in ONE centralized location
+// All widgets access the SAME cart data
 
-class CartNotifier extends StateNotifier<List<CartItem>> {
-  CartNotifier() : super([]);
-
-  void addItem(Product product) {
-    state = [...state, CartItem(product)];
-    // State updates EVERYWHERE automatically
-  }
-
-  void removeItem(String productId) {
-    state = state.where((item) => item.product.id != productId).toList();
-  }
-}
-
-// All widgets read from the SAME source
-class ProductPage extends ConsumerWidget {
+class ProductPage extends StatelessWidget {
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final cart = ref.watch(cartProvider);
+  Widget build(BuildContext context) {
+    final cart = getCartFromState(); // Reading from central store
     return Text('Items in cart: ${cart.length}'); // Always correct!
   }
 }
 
-class CartPage extends ConsumerWidget {
+class CartPage extends StatelessWidget {
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final cart = ref.watch(cartProvider);
+  Widget build(BuildContext context) {
+    final cart = getCartFromState(); // Reading from same store
     return ListView.builder(
       itemCount: cart.length, // Always correct!
       itemBuilder: (context, index) => CartItemWidget(cart[index]),
@@ -437,15 +432,21 @@ class CartPage extends ConsumerWidget {
   }
 }
 
-class AppBarBadge extends ConsumerWidget {
+class AppBarBadge extends StatelessWidget {
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final cartCount = ref.watch(cartProvider).length;
+  Widget build(BuildContext context) {
+    final cartCount = getCartCountFromState(); // Reading from same store
     return Badge(
       label: Text('$cartCount'), // Always correct!
       child: Icon(Icons.shopping_cart),
     );
   }
+}
+
+// To add item - update the centralized store
+void addToCart(Product product) {
+  updateCartInState(product);
+  // ALL widgets update automatically
 }
 ```
 
@@ -456,6 +457,8 @@ class AppBarBadge extends ConsumerWidget {
 - كل التطبيق بيقرأ من نفس المكان
 - مفيش تضارب أبداً
 - لما تعدل في مكان واحد، كل حاجة بتتحدث تلقائياً
+
+**ملحوظة:** هنشوف implementation تفصيلي في Section 02 و 03
 
 ---
 
@@ -590,53 +593,49 @@ test('login validation works', () {
 
 ### الحل الصحيح
 
-فصل Business Logic عن UI:
+فصل Business Logic عن UI باستخدام State Management:
 
 </div>
 
 ```dart
 // ✅ GOOD: Separate, testable business logic
 
-class LoginNotifier extends StateNotifier<LoginState> {
-  LoginNotifier(this._authRepository) : super(LoginState.initial());
+// With State Management, business logic separated from UI:
+// - Validation logic in separate class
+// - API calls abstracted
+// - State management handles state updates
+// - UI only displays state
 
+class LoginController {
   final AuthRepository _authRepository;
 
-  Future<void> login(String email, String password) async {
+  LoginController(this._authRepository);
+
+  Future<LoginResult> login(String email, String password) async {
     // Validation
     if (email.isEmpty || password.isEmpty) {
-      state = LoginState.error('Please fill all fields');
-      return;
+      return LoginResult.error('Please fill all fields');
     }
 
     if (!email.contains('@')) {
-      state = LoginState.error('Invalid email');
-      return;
+      return LoginResult.error('Invalid email');
     }
 
     if (password.length < 6) {
-      state = LoginState.error('Password too short');
-      return;
+      return LoginResult.error('Password too short');
     }
-
-    // Loading
-    state = LoginState.loading();
 
     // API call
     try {
       final user = await _authRepository.login(email, password);
-      state = LoginState.success(user);
+      return LoginResult.success(user);
     } on NetworkException {
-      state = LoginState.error('Network error');
+      return LoginResult.error('Network error');
     } on AuthException catch (e) {
-      state = LoginState.error(e.message);
+      return LoginResult.error(e.message);
     }
   }
 }
-
-final loginProvider = StateNotifierProvider<LoginNotifier, LoginState>((ref) {
-  return LoginNotifier(ref.watch(authRepositoryProvider));
-});
 ```
 
 <div dir="rtl">
@@ -649,45 +648,45 @@ final loginProvider = StateNotifierProvider<LoginNotifier, LoginState>((ref) {
 // ✅ Easy unit tests - no widgets needed!
 
 void main() {
-  late LoginNotifier notifier;
+  late LoginController controller;
   late MockAuthRepository mockRepo;
 
   setUp(() {
     mockRepo = MockAuthRepository();
-    notifier = LoginNotifier(mockRepo);
+    controller = LoginController(mockRepo);
   });
 
   test('shows error when email is empty', () async {
-    await notifier.login('', 'password123');
+    final result = await controller.login('', 'password123');
 
-    expect(notifier.state, isA<LoginError>());
-    expect((notifier.state as LoginError).message, 'Please fill all fields');
+    expect(result.isError, true);
+    expect(result.errorMessage, 'Please fill all fields');
   });
 
   test('shows error when email is invalid', () async {
-    await notifier.login('notanemail', 'password123');
+    final result = await controller.login('notanemail', 'password123');
 
-    expect(notifier.state, isA<LoginError>());
-    expect((notifier.state as LoginError).message, 'Invalid email');
+    expect(result.isError, true);
+    expect(result.errorMessage, 'Invalid email');
   });
 
   test('calls repository on valid input', () async {
     when(() => mockRepo.login(any(), any()))
         .thenAnswer((_) async => User(id: '1', name: 'Ahmed'));
 
-    await notifier.login('test@example.com', 'password123');
+    final result = await controller.login('test@example.com', 'password123');
 
     verify(() => mockRepo.login('test@example.com', 'password123')).called(1);
-    expect(notifier.state, isA<LoginSuccess>());
+    expect(result.isSuccess, true);
   });
 
   test('handles network errors', () async {
     when(() => mockRepo.login(any(), any())).thenThrow(NetworkException());
 
-    await notifier.login('test@example.com', 'password123');
+    final result = await controller.login('test@example.com', 'password123');
 
-    expect(notifier.state, isA<LoginError>());
-    expect((notifier.state as LoginError).message, 'Network error');
+    expect(result.isError, true);
+    expect(result.errorMessage, 'Network error');
   });
 }
 ```
@@ -699,6 +698,8 @@ void main() {
 - اختبارات سريعة (milliseconds بدل seconds)
 - سهولة عمل Mocks
 - إمكانية إعادة استخدام الـ Logic في أي Widget
+
+**ملحوظة:** هنشوف أمثلة تفصيلية مع Riverpod في Section 10 - Testing
 
 ---
 
