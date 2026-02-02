@@ -135,20 +135,29 @@ class TodosList extends _$TodosList {
 }
 ```
 
-#### Section 03-05: مستوى مبتدئ (Classic Syntax)
+#### Section 03-05: مستوى مبتدئ (Classic Syntax - Riverpod 3)
 
 **المسموح:**
-- Classic Provider syntax فقط
+- Classic Provider syntax فقط (بدون @riverpod)
 - Provider, StateProvider, FutureProvider, StreamProvider
+- **NotifierProvider, AsyncNotifierProvider, StreamNotifierProvider** ✅
+- **Notifier<T>, AsyncNotifier<T>, StreamNotifier<T> classes** ✅
 - `ref.watch`, `ref.read`
 - ConsumerWidget
-- أمثلة بسيطة (Counter, Todo)
+- أمثلة بسيطة ومتوسطة (Counter, Todo, Shopping Cart)
 
 **الممنوع:**
-- Code generation (`@riverpod`)
-- Notifier classes
-- Family modifier
+- Code generation (`@riverpod`) ❌ (مخصوص لـ Section 06+)
+- `build_runner`, `riverpod_generator` ❌
+- `_$` generated classes ❌
+- Family modifier (حتى Section 07+)
 - AutoDispose details (إلا لو شرح نظري بسيط)
+- StateNotifier (Legacy - Riverpod 2.x) ❌
+
+**ملحوظة مهمة:**
+- الهدف: تعليم Riverpod 3 patterns بالـ classic syntax
+- NotifierProvider هو الطريقة الصحيحة في Riverpod 3 (مش StateNotifier)
+- الفرق الوحيد عن Section 07+: هنا بنكتب manual، هناك بنستخدم code generation
 
 #### Section 06: Code Generation Introduction
 
@@ -173,7 +182,7 @@ class TodosList extends _$TodosList {
 
 **القاعدة الأهم:** في تسلسل محدد لتعليم Riverpod - لازم نلتزم بيه!
 
-#### 🔵 Phase 1: Classic Syntax (Sections 00-05)
+#### 🔵 Phase 1: Classic Syntax (Sections 00-05) - Riverpod 3 Patterns
 
 **المسموح في Sections 00-05:**
 
@@ -188,13 +197,47 @@ final doubledProvider = Provider<int>((ref) {
   return count * 2;
 });
 
-// StateProvider - for simple mutable state
+// StateProvider - for simple primitive mutable state
 final counterProvider = StateProvider<int>((ref) => 0);
 
 // Usage
 ref.read(counterProvider.notifier).state = 5;
 
-// FutureProvider - for one-time async data
+// NotifierProvider - for complex synchronous state (Riverpod 3) ✅
+class CounterNotifier extends Notifier<int> {
+  @override
+  int build() => 0;
+
+  void increment() => state++;
+  void decrement() => state--;
+  void reset() => state = 0;
+}
+
+final counterNotifierProvider = NotifierProvider<CounterNotifier, int>(
+  () => CounterNotifier(),
+);
+
+// AsyncNotifierProvider - for complex async state (Riverpod 3) ✅
+class TodosNotifier extends AsyncNotifier<List<Todo>> {
+  @override
+  Future<List<Todo>> build() async {
+    return await api.getTodos();
+  }
+
+  Future<void> addTodo(String title) async {
+    state = const AsyncLoading();
+    state = await AsyncValue.guard(() async {
+      await api.addTodo(title);
+      return await api.getTodos();
+    });
+  }
+}
+
+final todosProvider = AsyncNotifierProvider<TodosNotifier, List<Todo>>(
+  () => TodosNotifier(),
+);
+
+// FutureProvider - for one-time async data (no methods needed)
 final userProvider = FutureProvider<User>((ref) async {
   return await api.getUser();
 });
@@ -205,7 +248,7 @@ final messagesProvider = StreamProvider<Message>((ref) {
 });
 ```
 
-**الهدف:** المتعلم يفهم المفاهيم الأساسية بدون تعقيد code generation.
+**الهدف:** المتعلم يفهم Riverpod 3 patterns (Notifier, AsyncNotifier) بدون تعقيد code generation.
 
 ---
 
@@ -214,23 +257,35 @@ final messagesProvider = StreamProvider<Message>((ref) {
 **في Section 06 بس - نشرح الانتقال:**
 
 ```dart
-// Before: Classic syntax
-final counterProvider = StateProvider<int>((ref) => 0);
+// Before: Classic syntax (Manual NotifierProvider)
+class CounterNotifier extends Notifier<int> {
+  @override
+  int build() => 0;
 
-// After: Code generation
+  void increment() => state++;
+  void decrement() => state--;
+}
+
+final counterProvider = NotifierProvider<CounterNotifier, int>(
+  () => CounterNotifier(),
+);
+
+// After: Code generation (Same logic, auto-generated provider)
 @riverpod
 class Counter extends _$Counter {
   @override
   int build() => 0;
 
   void increment() => state++;
+  void decrement() => state--;
 }
 ```
 
 **نشرح:**
-- إزاي نعمل setup لـ build_runner
-- الفرق بين الطريقتين
-- مميزات code generation (type safety, less boilerplate)
+- إزاي نعمل setup لـ build_runner و riverpod_generator
+- الفرق بين الطريقتين (manual vs code generation)
+- مميزات code generation (less boilerplate, auto-generated, family support)
+- نفس الـ logic والـ patterns - بس code generation بيولد الـ provider تلقائياً
 
 ---
 
@@ -321,20 +376,27 @@ final counterProvider = StateNotifierProvider<CounterNotifier, int>((ref) {
 | القسم | Syntax المسموح | الهدف |
 |------|----------------|-------|
 | **00-02** | مفاهيم نظرية، pseudo-code | فهم State Management |
-| **03-05** | Classic (Provider, StateProvider, etc.) | تعلم Basics بدون complexity |
-| **06** | Classic + Code Generation (المقارنة) | الانتقال بين الطريقتين |
-| **07+** | Code Generation (Notifier, AsyncNotifier) | Modern Riverpod 3 |
+| **03-05** | Classic syntax (Provider, StateProvider, NotifierProvider, AsyncNotifierProvider) | تعلم Riverpod 3 patterns بدون code generation |
+| **06** | Classic + Code Generation (المقارنة) | الانتقال من manual لـ code generation |
+| **07+** | Code Generation (@riverpod with Notifier, AsyncNotifier) | Modern Riverpod 3 مع code generation |
 | **13** | Migration: StateNotifier → Notifier | Legacy migration فقط |
 
 ---
 
-#### ⚠️ ملحوظات مهمة
+#### ⚠️ ملحوظات مهمة جداً
 
-**ملحوظة 1:** لو Section 00 فيه Quick Start، لازم يكون **classic syntax** - مش code generation! Quick start لازم يكون بسيط بدون build_runner.
+**ملحوظة 1:** لو Section 00 فيه Quick Start، لازم يكون **classic syntax** - مش code generation! Quick start لازم يكون بسيط بدون build_runner setup.
 
-**ملحوظة 2:** في Section 02 (Comparisons)، ممكن نذكر إن Riverpod عنده طريقتين، بس **ما نستخدمش** تفاصيل - بس مفاهيم عامة.
+**ملحوظة 2:** في Section 02 (Comparisons)، الملفات بتقارن بين **حلول State Management المختلفة** (Provider package, BLoC, Riverpod) - مش تعليم تفصيلي.
+  - **Provider** يعني: Provider package (ChangeNotifier, ChangeNotifierProvider)
+  - **Riverpod** يعني: الحل الجديد (NotifierProvider, AsyncNotifierProvider)
 
-**ملحوظة 3:** StateProvider في classic syntax **مقبول** للتعليم - بس في Sections 03-05 فقط. بعد كده نستخدم Notifier.
+**ملحوظة 3:** Riverpod 3 عنده طريقتين لكتابة نفس الـ logic:
+  - **Classic syntax (Sections 03-05):** Manual NotifierProvider declarations
+  - **Code generation (Sections 06+):** @riverpod with auto-generated providers
+  - **نفس الـ patterns** - بس الطريقة مختلفة!
+
+**ملحوظة 4:** StateProvider **مقبول** للأمثلة البسيطة جداً (primitives). لكن NotifierProvider هو الـ **recommended way** في Riverpod 3 للـ state management.
 
 ---
 
@@ -544,11 +606,12 @@ class Counter extends _$Counter {
 - [ ] في قسم "المصادر"
 
 **حسب رقم القسم:**
-- [ ] Section 00-02: مفاهيم نظرية فقط (لا implementation)
-- [ ] Section 03-05: Classic syntax فقط (لا @riverpod)
-- [ ] Section 06: Classic + Code Generation (المقارنة)
-- [ ] Section 07+: Code Generation (Notifier/AsyncNotifier)
-- [ ] لا StateNotifier في أي مكان (إلا Migration Guide)
+- [ ] Section 00-02: مفاهيم نظرية فقط (لا implementation details)
+- [ ] Section 03-05: Classic syntax (NotifierProvider ✅, لا @riverpod ❌)
+- [ ] Section 06: Classic + Code Generation (المقارنة بين الطريقتين)
+- [ ] Section 07+: Code Generation (@riverpod + Notifier/AsyncNotifier)
+- [ ] لا StateNotifier (Legacy) في أي مكان (إلا Migration Guide)
+- [ ] لا `_$` generated classes في Section 03-05
 - [ ] مستوى الأمثلة مناسب للقسم
 
 ---
@@ -569,10 +632,13 @@ class Counter extends _$Counter {
    - RTL issues → اتجاه صحيح
 
    **لو Section 03-05:**
-   - `@riverpod` → Classic syntax (Provider, StateProvider, etc.)
-   - StateNotifier → StateProvider (مؤقت للتعليم)
-   - Notifier → StateProvider
-   - امسح أي code generation
+   - `@riverpod` → Classic syntax (Manual NotifierProvider)
+   - StateNotifier (Legacy) → Notifier + NotifierProvider ✅
+   - `_$` generated classes → Manual provider declarations
+   - Keep Notifier, AsyncNotifier, StreamNotifier ✅
+   - Keep NotifierProvider, AsyncNotifierProvider, StreamNotifierProvider ✅
+   - StateProvider: مقبول للـ primitives البسيطة
+   - امسح أي build_runner/code generation setup
    - ترجمات → مصطلحات إنجليزي
    - RTL issues → اتجاه صحيح
 
