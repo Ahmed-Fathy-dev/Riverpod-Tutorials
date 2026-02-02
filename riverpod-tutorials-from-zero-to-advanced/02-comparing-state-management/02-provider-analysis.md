@@ -97,7 +97,7 @@ Provider بيخلي نفس الـ functionality أبسط بكتير:
 </div>
 
 ```dart
-// ChangeNotifier - State holder
+// Step 1: Define ChangeNotifier - State holder
 class CounterNotifier extends ChangeNotifier {
   int _counter = 0;
 
@@ -109,7 +109,7 @@ class CounterNotifier extends ChangeNotifier {
   }
 }
 
-// Provide it at app level
+// Step 2: Provide it at app level
 void main() {
   runApp(
     ChangeNotifierProvider(
@@ -119,7 +119,7 @@ void main() {
   );
 }
 
-// Use it in widgets
+// Step 3: Use it in widgets
 class HomePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -150,54 +150,82 @@ class IncrementButton extends StatelessWidget {
 
 حزمة Provider عندها أنواع كتير، كل واحد لاستخدام معين:
 
-### النوع 1: Provider (الأساسي)
+### النوع 1: Provider<T> (الأساسي)
 
 **الاستخدام:** للقيم الثابتة أو الـ services (Dependency Injection)
+
+**مهم:** Provider هو **widget** في Provider package، مش global variable!
 
 </div>
 
 ```dart
-// Providing a constant value
-final themeProvider = Provider<String>(
-  create: (_) => 'Light Theme',
-);
+// Example 1: Providing a service
+void main() {
+  runApp(
+    Provider<ApiService>(
+      create: (_) => ApiService(),
+      child: MyApp(),
+    ),
+  );
+}
 
-// Providing a service
-final apiServiceProvider = Provider<ApiService>(
-  create: (_) => ApiService(),
-);
+// Example 2: Providing a constant configuration
+void main() {
+  runApp(
+    Provider<AppConfig>(
+      create: (_) => AppConfig(
+        apiUrl: 'https://api.example.com',
+        timeout: Duration(seconds: 30),
+      ),
+      child: MyApp(),
+    ),
+  );
+}
 
-// Usage
+// Usage - Read only (no rebuild)
 class MyWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    final theme = Provider.of<String>(context);
-    // Or: final theme = context.read<String>();
+    final apiService = context.read<ApiService>();
+    // Use apiService...
+    return Container();
+  }
+}
 
-    return Text('Current theme: $theme');
+// If you need to watch for changes (rare for Provider<T>)
+class AnotherWidget extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final config = context.watch<AppConfig>();
+    return Text('API URL: ${config.apiUrl}');
   }
 }
 ```
 
 <div dir="rtl">
 
-**ملاحظة:** ده مفيد للـ services والقيم الثابتة، لكن **مش** للـ state اللي بيتغير.
+**ملاحظة مهمة:** Provider<T> العادي **مش** للـ state اللي بيتغير كتير. ده للحاجات الثابتة أو الـ services.
 
-### النوع 2: ChangeNotifierProvider (الأشهر!)
+### النوع 2: ChangeNotifierProvider<T> (الأشهر!)
 
-**الاستخدام:** للـ state اللي بيتغير - الأكتر استخداماً
+**الاستخدام:** للـ state اللي بيتغير - الأكتر استخداماً في Provider package
 
 </div>
 
 ```dart
 // Step 1: Define ChangeNotifier
 class TodosNotifier extends ChangeNotifier {
-  List<Todo> _todos = [];
+  final List<Todo> _todos = [];
 
-  List<Todo> get todos => _todos;
+  List<Todo> get todos => List.unmodifiable(_todos);
+  int get count => _todos.length;
 
   void addTodo(String title) {
-    _todos.add(Todo(title: title));
+    _todos.add(Todo(
+      id: DateTime.now().toString(),
+      title: title,
+      completed: false,
+    ));
     notifyListeners(); // Critical! Rebuilds listening widgets
   }
 
@@ -211,6 +239,24 @@ class TodosNotifier extends ChangeNotifier {
     todo.completed = !todo.completed;
     notifyListeners();
   }
+
+  @override
+  void dispose() {
+    // Clean up resources
+    super.dispose();
+  }
+}
+
+class Todo {
+  final String id;
+  final String title;
+  bool completed;
+
+  Todo({
+    required this.id,
+    required this.title,
+    required this.completed,
+  });
 }
 
 // Step 2: Provide it
@@ -227,21 +273,23 @@ void main() {
 class TodosList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
+    // Watch rebuilds this widget when notifyListeners() is called
     final todosNotifier = context.watch<TodosNotifier>();
 
     return ListView.builder(
-      itemCount: todosNotifier.todos.length,
+      itemCount: todosNotifier.count,
       itemBuilder: (context, index) {
-        return Text(todosNotifier.todos[index].title);
+        return TodoTile(todosNotifier.todos[index]);
       },
     );
   }
 }
 
-// Step 4: Read it (doesn't rebuild)
+// Step 4: Read it (doesn't rebuild) - for actions
 class AddTodoButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
+    // Read doesn't rebuild - used for calling methods
     final todosNotifier = context.read<TodosNotifier>();
 
     return ElevatedButton(
@@ -250,73 +298,177 @@ class AddTodoButton extends StatelessWidget {
     );
   }
 }
-```
 
-<div dir="rtl">
-
-**الفكرة الأساسية:**
-- `ChangeNotifier`: الكلاس اللي بيحفظ الـ state
-- `notifyListeners()`: بتقول للـ widgets اللي بتسمع إنها تعمل rebuild
-- `context.watch()`: Widget بيسمع للتغييرات ويعمل rebuild
-- `context.read()`: Widget بيقرأ مرة واحدة بس، مش بيسمع
-
-### النوع 3: FutureProvider
-
-**الاستخدام:** للـ async operations اللي بترجع Future
-
-</div>
-
-```dart
-// Fetch user from API
-final userProvider = FutureProvider<User>(
-  create: (_) async {
-    return await ApiService().fetchUser();
-  },
-);
-
-// Usage
-class UserProfile extends StatelessWidget {
+// Step 5: Select - rebuild only when specific value changes
+class TodoCount extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    final userAsyncValue = context.watch<AsyncSnapshot<User>>();
-
-    if (userAsyncValue.connectionState == ConnectionState.waiting) {
-      return CircularProgressIndicator();
-    }
-
-    if (userAsyncValue.hasError) {
-      return Text('Error: ${userAsyncValue.error}');
-    }
-
-    final user = userAsyncValue.data!;
-    return Text('Hello ${user.name}');
+    // Only rebuilds when count changes, not when todos list changes
+    final count = context.select<TodosNotifier, int>((n) => n.count);
+    return Text('Total: $count');
   }
 }
 ```
 
 <div dir="rtl">
 
-### النوع 4: StreamProvider
+**الفكرة الأساسية:**
+- `ChangeNotifier`: الكلاس اللي بيحفظ الـ state وبيشتق من ChangeNotifier class
+- `notifyListeners()`: بتقول للـ widgets اللي بتسمع (watch) إنها تعمل rebuild
+- `context.watch<T>()`: Widget بيسمع للتغييرات ويعمل rebuild
+- `context.read<T>()`: Widget بيقرأ مرة واحدة بس، مش بيسمع (للـ actions)
+- `context.select<T, R>()`: Widget بيسمع لجزء معين بس من الـ state
 
-**الاستخدام:** للـ continuous data streams
+### النوع 3: FutureProvider<T>
+
+**الاستخدام:** للـ async operations اللي بترجع Future **مرة واحدة**
+
+**مهم جداً:** FutureProvider في Provider package بيرجع `T?` (nullable T)، مش AsyncSnapshot!
 
 </div>
 
 ```dart
-// Listen to Firestore stream
-final messagesProvider = StreamProvider<List<Message>>(
-  create: (_) => FirebaseFirestore.instance
-      .collection('messages')
-      .snapshots()
-      .map((snapshot) => snapshot.docs.map((doc) => Message.fromDoc(doc)).toList()),
-  initialData: [],
-);
+// Step 1: Provide a Future
+void main() {
+  runApp(
+    FutureProvider<User?>(
+      create: (_) async {
+        // Simulate API call
+        await Future.delayed(Duration(seconds: 2));
+        return User(name: 'Ahmed', email: 'ahmed@example.com');
+      },
+      initialData: null, // Required! Value shown before Future completes
+      child: MyApp(),
+    ),
+  );
+}
 
-// Usage
+class User {
+  final String name;
+  final String email;
+
+  User({required this.name, required this.email});
+}
+
+// Step 2: Consume it - watch returns T? (nullable T)
+class UserProfile extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    // Returns User?, NOT AsyncSnapshot<User>!
+    final user = context.watch<User?>();
+
+    // Handle loading state
+    if (user == null) {
+      return CircularProgressIndicator();
+    }
+
+    // Data loaded
+    return Column(
+      children: [
+        Text('Name: ${user.name}'),
+        Text('Email: ${user.email}'),
+      ],
+    );
+  }
+}
+
+// Example 2: With error handling using catchError
+void main() {
+  runApp(
+    FutureProvider<String?>(
+      create: (_) async {
+        final response = await http.get(Uri.parse('https://api.example.com/data'));
+        if (response.statusCode != 200) {
+          throw Exception('Failed to load');
+        }
+        return response.body;
+      },
+      initialData: null,
+      catchError: (context, error) {
+        // Return fallback value on error
+        return 'Error: ${error.toString()}';
+      },
+      child: MyApp(),
+    ),
+  );
+}
+```
+
+<div dir="rtl">
+
+**ملاحظات مهمة:**
+- FutureProvider **مش** بيرجع AsyncSnapshot زي FutureBuilder
+- بيرجع القيمة نفسها `T?` (nullable)
+- `initialData` **مطلوب** (required) - القيمة اللي تظهر قبل ما الـ Future يخلص
+- FutureProvider مناسب للـ data اللي **ما بيتغيرش** (one-time fetch)
+- لو محتاج state management معقد، استخدم ChangeNotifierProvider أحسن
+
+### النوع 4: StreamProvider<T>
+
+**الاستخدام:** للـ continuous data streams (Firebase, WebSockets, etc.)
+
+**مهم:** StreamProvider بيرجع `T` (القيمة الأخيرة من الـ stream)، مش AsyncSnapshot!
+
+</div>
+
+```dart
+// Step 1: Provide a Stream
+void main() {
+  runApp(
+    StreamProvider<int>(
+      create: (_) {
+        // Stream that emits a number every second
+        return Stream.periodic(
+          Duration(seconds: 1),
+          (count) => count,
+        );
+      },
+      initialData: 0, // Required! Initial value before stream emits
+      child: MyApp(),
+    ),
+  );
+}
+
+// Step 2: Consume it - returns T (latest value from stream)
+class TimerDisplay extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    // Returns int (latest value), NOT AsyncSnapshot<int>!
+    final seconds = context.watch<int>();
+    return Text('Seconds elapsed: $seconds');
+  }
+}
+
+// Example 2: Firebase Firestore stream
+void main() {
+  runApp(
+    StreamProvider<List<Message>>(
+      create: (_) {
+        return FirebaseFirestore.instance
+            .collection('messages')
+            .orderBy('timestamp', descending: true)
+            .snapshots()
+            .map((snapshot) {
+          return snapshot.docs
+              .map((doc) => Message.fromFirestore(doc))
+              .toList();
+        });
+      },
+      initialData: [], // Empty list initially
+      child: MyApp(),
+    ),
+  );
+}
+
 class ChatList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
+    // Returns List<Message> directly
     final messages = context.watch<List<Message>>();
+
+    if (messages.isEmpty) {
+      return Text('No messages yet');
+    }
 
     return ListView.builder(
       itemCount: messages.length,
@@ -326,62 +478,252 @@ class ChatList extends StatelessWidget {
     );
   }
 }
+
+// Example 3: With error handling
+void main() {
+  runApp(
+    StreamProvider<String>(
+      create: (_) => dataStream(),
+      initialData: 'Loading...',
+      catchError: (context, error) {
+        return 'Error: ${error.toString()}';
+      },
+      child: MyApp(),
+    ),
+  );
+}
 ```
 
 <div dir="rtl">
 
-### النوع 5: StateProvider
+**ملاحظات مهمة:**
+- StreamProvider بيرجع `T` (آخر قيمة من الـ stream)، مش AsyncSnapshot
+- `initialData` **مطلوب** - القيمة الأولية قبل ما الـ stream يبدأ يبعت data
+- مناسب للـ real-time data (Firebase, WebSockets)
+- بيعمل automatic disposal للـ stream لما الـ widget يتمسح
 
-**الاستخدام:** للقيم البسيطة (primitives) اللي بتتغير
+### النوع 5: ListenableProvider<T>
 
-**ملاحظة:** StateProvider موجود في Provider package **و** Riverpod، لكن بـ API مختلف!
+**الاستخدام:** لأي object بيشتق من Listenable (مش بس ChangeNotifier)
 
 </div>
 
 ```dart
-// Simple counter using StateProvider (Provider package doesn't have this)
-// This is actually from an earlier experimental API
-// Most common approach is ChangeNotifierProvider
+// Example: AnimationController implements Listenable
+class MyAnimationWidget extends StatefulWidget {
+  @override
+  State<MyAnimationWidget> createState() => _MyAnimationWidgetState();
+}
 
-// Alternative: Just use ChangeNotifierProvider with simple state
-class SimpleCounter extends ChangeNotifier {
-  int _count = 0;
-  int get count => _count;
+class _MyAnimationWidgetState extends State<MyAnimationWidget>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
 
-  void increment() {
-    _count++;
-    notifyListeners();
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: Duration(seconds: 2),
+      vsync: this,
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ListenableProvider<AnimationController>.value(
+      value: _controller,
+      child: AnimatedBox(),
+    );
+  }
+}
+
+class AnimatedBox extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final controller = context.watch<AnimationController>();
+    return Transform.rotate(
+      angle: controller.value * 2 * pi,
+      child: Container(
+        width: 100,
+        height: 100,
+        color: Colors.blue,
+      ),
+    );
   }
 }
 ```
 
 <div dir="rtl">
 
+**ملاحظة:** ChangeNotifierProvider هو نسخة specialized من ListenableProvider.
+
 ### النوع 6: ProxyProvider
 
-**الاستخدام:** لما provider محتاج يعتمد على provider تاني
+**الاستخدام:** لما provider محتاج يعتمد على provider تاني (Dependency Injection)
 
 </div>
 
 ```dart
-// Database provider
-final databaseProvider = Provider<Database>(
-  create: (_) => Database(),
-);
+// Example: Repository depends on Database service
 
-// Repository that depends on database
-final userRepositoryProvider = ProxyProvider<Database, UserRepository>(
-  update: (_, database, __) => UserRepository(database),
-);
+// Step 1: Provide Database service
+class Database {
+  Future<List<User>> getUsers() async {
+    // Database logic
+    return [];
+  }
+}
 
-// Usage
-class MyWidget extends StatelessWidget {
+// Step 2: Repository depends on Database
+class UserRepository {
+  final Database database;
+
+  UserRepository(this.database);
+
+  Future<List<User>> fetchUsers() {
+    return database.getUsers();
+  }
+}
+
+// Step 3: Use ProxyProvider to inject Database into Repository
+void main() {
+  runApp(
+    MultiProvider(
+      providers: [
+        // First provider: Database
+        Provider<Database>(
+          create: (_) => Database(),
+        ),
+        // Second provider: UserRepository depends on Database
+        ProxyProvider<Database, UserRepository>(
+          update: (context, database, previousRepo) {
+            return UserRepository(database);
+          },
+        ),
+      ],
+      child: MyApp(),
+    ),
+  );
+}
+
+// Step 4: Use the repository
+class UsersList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    final userRepo = context.read<UserRepository>();
-    // userRepo automatically has the database injected
+    final repo = context.read<UserRepository>();
+    // Use repo...
     return Container();
   }
+}
+
+// Example 2: ProxyProvider2 - depends on TWO providers
+void main() {
+  runApp(
+    MultiProvider(
+      providers: [
+        Provider<Database>(create: (_) => Database()),
+        Provider<ApiService>(create: (_) => ApiService()),
+        // UserRepository depends on BOTH Database AND ApiService
+        ProxyProvider2<Database, ApiService, UserRepository>(
+          update: (context, database, apiService, previousRepo) {
+            return UserRepository(
+              database: database,
+              apiService: apiService,
+            );
+          },
+        ),
+      ],
+      child: MyApp(),
+    ),
+  );
+}
+```
+
+<div dir="rtl">
+
+**متى تستخدم ProxyProvider:**
+- لما provider محتاج يعتمد على providers تانية
+- للـ Dependency Injection بين services
+- فيه ProxyProvider, ProxyProvider2, ProxyProvider3... لحد ProxyProvider6
+
+**البدائل:**
+- `ProxyProvider` - depends on 1 provider
+- `ProxyProvider2` - depends on 2 providers
+- `ProxyProvider3` - depends on 3 providers
+- ... لحد `ProxyProvider6`
+
+### النوع 7: ChangeNotifierProxyProvider
+
+**الاستخدام:** زي ProxyProvider، لكن للـ ChangeNotifier
+
+</div>
+
+```dart
+// Example: Cart depends on User authentication
+class User {
+  final String id;
+  final String name;
+
+  User({required this.id, required this.name});
+}
+
+class AuthNotifier extends ChangeNotifier {
+  User? _user;
+
+  User? get user => _user;
+
+  void login(User user) {
+    _user = user;
+    notifyListeners();
+  }
+
+  void logout() {
+    _user = null;
+    notifyListeners();
+  }
+}
+
+class CartNotifier extends ChangeNotifier {
+  final User? user;
+  final List<Product> _items = [];
+
+  CartNotifier(this.user);
+
+  List<Product> get items => List.unmodifiable(_items);
+
+  void addItem(Product product) {
+    if (user == null) {
+      throw Exception('Must be logged in to add to cart');
+    }
+    _items.add(product);
+    notifyListeners();
+  }
+}
+
+// Setup
+void main() {
+  runApp(
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider<AuthNotifier>(
+          create: (_) => AuthNotifier(),
+        ),
+        ChangeNotifierProxyProvider<AuthNotifier, CartNotifier>(
+          create: (_) => CartNotifier(null),
+          update: (context, auth, previousCart) {
+            return CartNotifier(auth.user);
+          },
+        ),
+      ],
+      child: MyApp(),
+    ),
+  );
 }
 ```
 
@@ -393,7 +735,7 @@ class MyWidget extends StatelessWidget {
 
 Provider package عنده 3 طرق مختلفة للوصول للـ state:
 
-### الطريقة 1: Provider.of (الطريقة الكلاسيكية)
+### الطريقة 1: Provider.of<T> (الطريقة الكلاسيكية)
 
 </div>
 
@@ -404,7 +746,7 @@ class MyWidget extends StatelessWidget {
     // Listen to changes (rebuild when notified)
     final counter = Provider.of<CounterNotifier>(context);
 
-    // Don't listen (no rebuild)
+    // Don't listen (no rebuild) - for calling methods
     final counterNoRebuild = Provider.of<CounterNotifier>(context, listen: false);
 
     return Text('${counter.count}');
@@ -414,34 +756,50 @@ class MyWidget extends StatelessWidget {
 
 <div dir="rtl">
 
-### الطريقة 2: Consumer Widget
+### الطريقة 2: Consumer<T> Widget
+
+**الفائدة:** Performance optimization - بس الجزء اللي جوا Consumer اللي بيعمل rebuild
 
 </div>
 
 ```dart
-// Better for performance - only rebuilds Consumer, not entire widget
 class MyWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Column(
       children: [
-        Text('This doesn\'t rebuild'),
+        Text('This header doesn\'t rebuild'),
+        // Only this Consumer rebuilds when counter changes
         Consumer<CounterNotifier>(
           builder: (context, counter, child) {
-            // Only this part rebuilds
             return Text('Count: ${counter.count}');
           },
         ),
-        Text('This also doesn\'t rebuild'),
+        Text('This footer doesn\'t rebuild either'),
       ],
     );
   }
 }
+
+// With child parameter for static parts
+Consumer<CounterNotifier>(
+  builder: (context, counter, child) {
+    return Column(
+      children: [
+        Text('Count: ${counter.count}'), // Rebuilds
+        child!, // Doesn't rebuild
+      ],
+    );
+  },
+  child: ExpensiveWidget(), // Built once, reused
+)
 ```
 
 <div dir="rtl">
 
-### الطريقة 3: context extensions (الأحدث)
+### الطريقة 3: context extensions (الأحدث والأفضل!)
+
+**مضافة في Provider 4.0+** - الطريقة الأوضح والأسهل
 
 </div>
 
@@ -449,29 +807,58 @@ class MyWidget extends StatelessWidget {
 class MyWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    // Watch (rebuilds when notified)
+    // 1. Watch - rebuilds when notified
     final counter = context.watch<CounterNotifier>();
 
-    // Read (doesn't rebuild)
+    // 2. Read - doesn't rebuild (for calling methods)
     final counterNoRebuild = context.read<CounterNotifier>();
 
-    // Select (rebuilds only when specific value changes)
-    final count = context.select<CounterNotifier, int>((notifier) => notifier.count);
+    // 3. Select - rebuilds only when specific value changes
+    final count = context.select<CounterNotifier, int>((n) => n.count);
 
-    return Text('$count');
+    return Column(
+      children: [
+        Text('$count'), // Rebuilds only when count changes
+        ElevatedButton(
+          onPressed: () => context.read<CounterNotifier>().increment(),
+          child: Text('Increment'),
+        ),
+      ],
+    );
+  }
+}
+
+// Example: Select for granular rebuilds
+class UserInfo extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    // Only rebuilds when name changes, NOT when other user fields change
+    final name = context.select<UserNotifier, String>((user) => user.name);
+    return Text('Hello $name');
   }
 }
 ```
 
 <div dir="rtl">
 
-**أفضل طريقة:** `context.watch()` و `context.read()` - الأوضح والأسهل.
+**أفضل طريقة:** استخدم `context.watch()` و `context.read()` و `context.select()` - الأوضح والأسهل!
+
+**المقارنة:**
+
+| الطريقة | الاستخدام | المميزات | العيوب |
+|---------|-----------|----------|--------|
+| `Provider.of<T>(context)` | Listening | كلاسيكية | طويلة، مش واضحة |
+| `Provider.of<T>(context, listen: false)` | Reading | كلاسيكية | طويلة، easy to forget listen parameter |
+| `Consumer<T>` | Performance | Granular rebuilds | Verbose |
+| `context.watch<T>()` | Listening | واضحة، قصيرة | - |
+| `context.read<T>()` | Reading | واضحة، قصيرة | - |
+| `context.select<T, R>()` | Selective | Performance boost | - |
 
 ---
 
 ## 📦 MultiProvider
 
-لما عندك providers كتير، بدل ما تعمل nesting:
+لما عندك providers كتير، بدل ما تعمل nesting معقد:
 
 </div>
 
@@ -483,24 +870,51 @@ ChangeNotifierProvider(
     create: (_) => CartNotifier(),
     child: ChangeNotifierProvider(
       create: (_) => ThemeNotifier(),
-      child: MyApp(),
+      child: Provider(
+        create: (_) => ApiService(),
+        child: MyApp(),
+      ),
     ),
   ),
 );
 
-// ✅ MultiProvider - clean!
+// ✅ MultiProvider - clean and readable!
 MultiProvider(
   providers: [
-    ChangeNotifierProvider(create: (_) => UserNotifier()),
-    ChangeNotifierProvider(create: (_) => CartNotifier()),
-    ChangeNotifierProvider(create: (_) => ThemeNotifier()),
-    Provider(create: (_) => ApiService()),
+    // Services
+    Provider<ApiService>(create: (_) => ApiService()),
+    Provider<Database>(create: (_) => Database()),
+
+    // State managers
+    ChangeNotifierProvider<UserNotifier>(create: (_) => UserNotifier()),
+    ChangeNotifierProvider<CartNotifier>(create: (_) => CartNotifier()),
+    ChangeNotifierProvider<ThemeNotifier>(create: (_) => ThemeNotifier()),
+
+    // Async data
+    FutureProvider<Config?>(
+      create: (_) => loadConfig(),
+      initialData: null,
+    ),
+    StreamProvider<List<Notification>>(
+      create: (_) => notificationStream(),
+      initialData: [],
+    ),
+
+    // Dependencies
+    ProxyProvider<ApiService, UserRepository>(
+      update: (_, api, __) => UserRepository(api),
+    ),
   ],
   child: MyApp(),
 );
 ```
 
 <div dir="rtl">
+
+**المميزات:**
+- Clean code structure
+- سهل تضيف أو تشيل providers
+- واضح ومنظم
 
 ---
 
@@ -519,10 +933,14 @@ class MyNotifier extends ChangeNotifier {
   // Your state here
 }
 
-ChangeNotifierProvider(
-  create: (_) => MyNotifier(),
-  child: MyApp(),
-);
+void main() {
+  runApp(
+    ChangeNotifierProvider(
+      create: (_) => MyNotifier(),
+      child: MyApp(),
+    ),
+  );
+}
 ```
 
 <div dir="rtl">
@@ -533,9 +951,15 @@ Google رشحته في الـ [official documentation](https://docs.flutter.dev/
 
 ### ميزة 3: أنواع متعددة لكل حالة
 
-عندك 6+ أنواع providers لكل use case (ChangeNotifier, Future, Stream, إلخ.)
+عندك أنواع providers لكل use case:
+- **Provider<T>** - للـ services والقيم الثابتة
+- **ChangeNotifierProvider<T>** - للـ mutable state
+- **FutureProvider<T>** - للـ async operations
+- **StreamProvider<T>** - للـ streams
+- **ProxyProvider** - للـ dependencies
+- **ListenableProvider<T>** - للـ Listenable objects
 
-### ميزة 4: Performance optimization مع Consumer
+### ميزة 4: Performance optimization مع Consumer و select
 
 </div>
 
@@ -546,6 +970,9 @@ Consumer<CounterNotifier>(
     return Text('${counter.count}');
   },
 );
+
+// Or use select for even finer control
+final count = context.select<CartNotifier, int>((cart) => cart.items.length);
 ```
 
 <div dir="rtl">
@@ -553,6 +980,10 @@ Consumer<CounterNotifier>(
 ### ميزة 5: سهل التعلم
 
 الـ API بسيط ومباشر - خصوصاً مع `context.watch()` و `context.read()`.
+
+### ميزة 6: مبني على Flutter نفسه
+
+Provider بيستخدم InheritedWidget (جزء من Flutter الأساسي)، فهو مش external dependency كبيرة.
 
 ---
 
@@ -575,7 +1006,7 @@ class AuthService {
     // ❌ Can't do: context.read<UserNotifier>()
 
     // Ugly workarounds:
-    // 1. Pass context as parameter (bad practice)
+    // 1. Pass BuildContext as parameter (bad practice)
     // 2. Use global keys (even worse)
     // 3. Pass notifier instance manually (not scalable)
   }
@@ -583,6 +1014,10 @@ class AuthService {
 
 // With Riverpod:
 // ✅ No BuildContext needed!
+final authServiceProvider = Provider((ref) {
+  return AuthService(ref);
+});
+
 class AuthService {
   final Ref ref;
 
@@ -610,7 +1045,7 @@ class MyWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     final user = context.watch<UserNotifier>();
     // Runtime Error: ProviderNotFoundException!
-    // Could not find the correct Provider<UserNotifier>
+    // Could not find the correct Provider<UserNotifier> above this MyWidget widget
 
     return Text(user.name);
   }
@@ -618,12 +1053,12 @@ class MyWidget extends StatelessWidget {
 
 // The problem:
 // - Forgot to add ChangeNotifierProvider at app level
-// - Error discovered when user runs the app
-// - Not caught during development!
+// - Error discovered ONLY when user runs the app and opens this screen
+// - Not caught during development or compile time!
 
 // With Riverpod:
 // ✅ Compile-time safety!
-final userProvider = StateNotifierProvider<UserNotifier, User>((ref) {
+final userProvider = NotifierProvider<UserNotifier, User>(() {
   return UserNotifier();
 });
 
@@ -639,7 +1074,7 @@ class MyWidget extends ConsumerWidget {
 
 <div dir="rtl">
 
-### عيب 3: Testing صعب
+### عيب 3: Testing صعب ومعقد
 
 </div>
 
@@ -647,10 +1082,10 @@ class MyWidget extends ConsumerWidget {
 // ❌ Provider: Need widget tests (slow!)
 testWidgets('cart adds item correctly', (tester) async {
   await tester.pumpWidget(
-    ChangeNotifierProvider(
-      create: (_) => MockCartNotifier(),
-      child: MaterialApp(
-        home: CartPage(),
+    MaterialApp(
+      home: ChangeNotifierProvider(
+        create: (_) => CartNotifier(),
+        child: CartPage(),
       ),
     ),
   );
@@ -666,14 +1101,15 @@ testWidgets('cart adds item correctly', (tester) async {
 test('cart adds item correctly', () {
   final container = ProviderContainer(
     overrides: [
-      cartProvider.overrideWith((ref) => MockCartNotifier()),
+      // Easy mocking!
+      cartProvider.overrideWith(() => CartNotifier()),
     ],
   );
 
-  final cart = container.read(cartProvider);
-  cart.addItem(Product(id: '1'));
+  final cart = container.read(cartProvider.notifier);
+  cart.addItem(Product(id: '1', name: 'Test'));
 
-  expect(cart.items.length, 1);
+  expect(container.read(cartProvider).items.length, 1);
 });
 ```
 
@@ -685,13 +1121,20 @@ test('cart adds item correctly', () {
 
 ```dart
 // ❌ Provider: Resources live forever!
-final messagesProvider = StreamProvider<List<Message>>(
-  create: (_) => chatService.messagesStream(),
-);
+void main() {
+  runApp(
+    StreamProvider<List<Message>>(
+      create: (_) => chatService.messagesStream(),
+      initialData: [],
+      child: MyApp(),
+    ),
+  );
+}
 
-// When you leave chat page, stream STILL RUNNING!
-// Memory leak!
-// Need manual cleanup in dispose()
+// Problem:
+// - When you leave chat page, stream STILL RUNNING!
+// - Memory leak!
+// - Need manual cleanup in dispose() method
 
 // ✅ Riverpod: Auto disposal!
 final messagesProvider = StreamProvider.autoDispose<List<Message>>((ref) {
@@ -699,61 +1142,75 @@ final messagesProvider = StreamProvider.autoDispose<List<Message>>((ref) {
 });
 
 // When no widget watches this, automatically cleaned up!
+// Stream is canceled automatically
 ```
 
 <div dir="rtl">
 
-### عيب 5: Scoping معقد
+### عيب 5: Scoping معقد جداً
 
 </div>
 
 ```dart
 // ❌ Provider: Creating scoped providers is complex
-// Need to manually create new provider instances for different scopes
+// If you want different instances for different screens,
+// you need to manually wrap each screen with its own provider
+// Very verbose and error-prone
 
 // ✅ Riverpod: Family modifier makes it easy
 final todoProvider = FutureProvider.family<Todo, String>((ref, id) {
   return api.getTodo(id);
 });
 
-// Each ID gets its own provider automatically!
+// Each ID gets its own provider instance automatically!
 final todo1 = ref.watch(todoProvider('1'));
 final todo2 = ref.watch(todoProvider('2'));
+// Cached separately, disposed separately
 ```
 
 <div dir="rtl">
 
-### عيب 6: No True Dependency Injection
+### عيب 6: Dependency Injection معقد
 
 </div>
 
 ```dart
 // ❌ Provider: DI is clunky
-final databaseProvider = Provider<Database>(
-  create: (_) => Database(),
+MultiProvider(
+  providers: [
+    Provider<Database>(create: (_) => Database()),
+    ProxyProvider<Database, UserRepository>(
+      update: (_, database, __) => UserRepository(database),
+    ),
+    ProxyProvider2<Database, UserRepository, AuthService>(
+      update: (_, db, userRepo, __) => AuthService(db, userRepo),
+    ),
+    // Need ProxyProvider3, ProxyProvider4... up to ProxyProvider6!
+    // Very verbose and hard to read
+  ],
+  child: MyApp(),
 );
 
-final userRepoProvider = ProxyProvider<Database, UserRepository>(
-  update: (_, database, __) => UserRepository(database),
-);
+// ✅ Riverpod: Clean DI with ref!
+final databaseProvider = Provider((ref) => Database());
 
-// Need ProxyProvider, ProxyProvider2, ProxyProvider3... up to 6!
-// Very verbose
-
-// ✅ Riverpod: Clean DI!
-final databaseProvider = Provider<Database>((ref) => Database());
-
-final userRepoProvider = Provider<UserRepository>((ref) {
+final userRepoProvider = Provider((ref) {
   final database = ref.watch(databaseProvider);
   return UserRepository(database);
 });
 
-// Simple ref.watch - works for any number of dependencies!
+final authServiceProvider = Provider((ref) {
+  final db = ref.watch(databaseProvider);
+  final userRepo = ref.watch(userRepoProvider);
+  return AuthService(db, userRepo);
+});
+
+// Simple, clean, works for ANY number of dependencies!
 ```
 
 <div dir="rtl">
 
-### عيب 7: Mutable Global State
+### عيب 7: Global Mutable State
 
 </div>
 
@@ -765,22 +1222,34 @@ class RandomWidget extends StatelessWidget {
     final cart = context.read<CartNotifier>();
 
     // This widget shouldn't modify cart, but it CAN!
-    cart.clear(); // No protection!
+    // No type safety or protection
+    cart.clear(); // Dangerous!
+    cart.addItem(Product()); // No restrictions!
 
     return Container();
   }
 }
 
-// ✅ Riverpod: Better encapsulation through notifiers
-final cartProvider = NotifierProvider<CartNotifier, CartState>((ref) {
+// ✅ Riverpod: Better separation with .notifier
+final cartProvider = NotifierProvider<CartNotifier, CartState>(() {
   return CartNotifier();
 });
 
-// Can only modify through exposed methods
+// Read state (immutable)
+final cart = ref.watch(cartProvider);
+
+// Modify state (explicit)
 ref.read(cartProvider.notifier).clear();
 ```
 
 <div dir="rtl">
+
+### عيب 8: Widget Tree Dependency
+
+Provider يحتاج تكون كل الـ providers في الـ widget tree. ده بيخلي:
+- Testing أصعب (محتاج widget tree)
+- مش ممكن تستخدم providers خارج widgets
+- الـ app structure معقدة (providers في main.dart فقط)
 
 ---
 
@@ -789,15 +1258,16 @@ ref.read(cartProvider.notifier).clear();
 </div>
 
 ```
-Provider Problems              Riverpod Solutions
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-❌ BuildContext dependency     → ✅ No BuildContext needed
-❌ Runtime errors               → ✅ Compile-time safety
-❌ Hard to test                 → ✅ Easy overrides & mocking
-❌ Manual disposal              → ✅ Auto disposal
-❌ Complex scoping              → ✅ Family & autoDispose
-❌ Clunky DI                    → ✅ Simple ref-based DI
-❌ No access outside widgets    → ✅ Use anywhere (services, repos)
+Provider Package Problems              Riverpod Solutions
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+❌ BuildContext required              → ✅ No BuildContext needed (ref.watch/read)
+❌ Runtime errors (ProviderNotFound)  → ✅ Compile-time safety
+❌ Hard to test (widget tests needed) → ✅ Easy unit tests (ProviderContainer)
+❌ Manual disposal required           → ✅ Auto disposal (.autoDispose)
+❌ Complex scoping                    → ✅ Family & autoDispose modifiers
+❌ Clunky DI (ProxyProvider2, 3...)   → ✅ Simple ref-based DI
+❌ No access outside widgets          → ✅ Use anywhere (global providers)
+❌ Widget tree dependency             → ✅ Independent of widget tree
 ```
 
 <div dir="rtl">
@@ -810,73 +1280,98 @@ Provider Problems              Riverpod Solutions
 |--------|-----------------|-----------|
 | **سهولة التعلم** | ⭐⭐⭐⭐ | سهل للمبتدئين |
 | **Boilerplate** | ⭐⭐⭐ | متوسط (ChangeNotifier + notifyListeners) |
-| **Type Safety** | ⭐⭐ | Runtime errors |
-| **BuildContext** | ❌ Required | أكبر عيب |
-| **Testing** | ⭐⭐ | محتاج widget tests |
+| **Type Safety** | ⭐⭐ | Runtime errors ممكنة |
+| **BuildContext** | ❌ Required | أكبر عيب - مش ممكن استخدام خارج widgets |
+| **Testing** | ⭐⭐ | محتاج widget tests (بطيئة) |
 | **Scalability** | ⭐⭐⭐ | كويس للمشاريع المتوسطة |
-| **DI** | ⭐⭐ | ProxyProvider معقد |
-| **Auto Disposal** | ❌ | Manual |
+| **DI** | ⭐⭐ | ProxyProvider معقد للـ dependencies الكثيرة |
+| **Auto Disposal** | ❌ Manual | محتاج cleanup يدوي |
+| **Performance** | ⭐⭐⭐⭐ | كويس مع Consumer و select |
 | **Community** | ⭐⭐⭐⭐⭐ | ضخمة جداً |
 | **Official Support** | ⭐⭐⭐⭐ | Google recommended |
+| **Documentation** | ⭐⭐⭐⭐ | ممتازة |
 
 ---
 
 ## 🎯 متى تستخدم Provider Package؟
 
 ### ✅ استخدمه لو:
-- مشروع قديم موجود فعلاً وشغال
-- الفريق متعود عليه ومفيش وقت للتغيير
-- مشروع صغير جداً وبسيط
-- محتاج أبسط حاجة بسرعة
+- مشروع **قديم** موجود فعلاً وشغال بـ Provider
+- الفريق **متعود** عليه ومفيش وقت للتغيير
+- مشروع **صغير جداً** وبسيط (prototype, MVP)
+- محتاج أبسط حاجة بسرعة للـ learning purposes
+- الـ state management requirements بسيطة
 
 ### ❌ متستخدموش لو:
-- **بتبدأ مشروع جديد** → استخدم Riverpod
-- محتاج compile-time safety
-- محتاج تستخدم providers خارج widgets (services, repositories)
-- محتاج testing سهل
-- مشروع كبير ومعقد
+- **بتبدأ مشروع جديد** → استخدم Riverpod بدلاً منه
+- محتاج **compile-time safety**
+- محتاج تستخدم providers **خارج widgets** (services, repositories)
+- محتاج **testing سهل** (unit tests)
+- مشروع **كبير ومعقد**
+- محتاج **auto disposal** للـ resources
+- عايز **أفضل developer experience**
 
 ---
 
 ## 💡 ليه Riverpod هو البديل؟
 
-**Riverpod** اتعمل بواسطة **Remi Rousselet** (نفس مطور Provider) عشان يحل كل المشاكل دي:
+**Riverpod** ("Provider" معكوسة 😄) اتعمل بواسطة **Remi Rousselet** (نفس مطور Provider!) عشان يحل كل المشاكل دي:
 
 </div>
 
 ```dart
 // Provider problems → Riverpod solutions
 
-// ❌ Provider: Need BuildContext
-context.watch<UserNotifier>()
+// ❌ Provider: Need BuildContext everywhere
+final user = context.watch<UserNotifier>();
 
-// ✅ Riverpod: No BuildContext!
-ref.watch(userProvider)
+// ✅ Riverpod: No BuildContext - use anywhere!
+final user = ref.watch(userProvider);
 
-// ❌ Provider: Runtime errors
-final user = context.watch<UserNotifier>(); // Crashes if not provided
+// ❌ Provider: Runtime errors possible
+final cart = context.watch<CartNotifier>(); // Crash if not provided!
 
 // ✅ Riverpod: Compile-time safety
-final user = ref.watch(userProvider); // Won't compile if missing
+final cart = ref.watch(cartProvider); // Won't compile if missing!
 
-// ❌ Provider: Complex testing
-testWidgets('test', (tester) async { /* widget test */ });
+// ❌ Provider: Complex testing (widget tests)
+testWidgets('test', (tester) async {
+  await tester.pumpWidget(/* complex setup */);
+});
 
 // ✅ Riverpod: Simple unit tests
-test('test', () { /* fast unit test */ });
+test('test', () {
+  final container = ProviderContainer();
+  final value = container.read(myProvider);
+});
 
 // ❌ Provider: Manual disposal
 @override
 void dispose() {
-  controller.dispose();
+  _controller.dispose();
+  _stream.cancel();
   super.dispose();
 }
 
 // ✅ Riverpod: Auto disposal
 final provider = StreamProvider.autoDispose((ref) => stream);
+// Automatically canceled when no longer used!
+
+// ❌ Provider: Clunky DI with ProxyProvider2, 3, 4...
+ProxyProvider3<A, B, C, Result>(...)
+
+// ✅ Riverpod: Clean DI with ref
+final provider = Provider((ref) {
+  final a = ref.watch(providerA);
+  final b = ref.watch(providerB);
+  final c = ref.watch(providerC);
+  return Result(a, b, c);
+});
 ```
 
 <div dir="rtl">
+
+**الخلاصة:** Provider كان حل عظيم في 2019، لكن Riverpod هو **التطور الطبيعي** ليه - نفس المطور، نفس الأفكار، لكن بدون كل المشاكل!
 
 ---
 
@@ -884,7 +1379,7 @@ final provider = StreamProvider.autoDispose((ref) => stream);
 
 دلوقتي بعد ما فهمت Provider package بالتفصيل، وقت نشوف:
 - **تحليل BLoC/Cubit** (الملف الجاي)
-- **مقارنة Riverpod vs Provider**
+- **مقارنة Riverpod vs Provider بالتفصيل**
 - **دليل Migration من Provider لـ Riverpod**
 
 ---
@@ -896,6 +1391,7 @@ final provider = StreamProvider.autoDispose((ref) => stream);
 - [Flutter State Management Guide](https://docs.flutter.dev/data-and-backend/state-mgmt/simple)
 - [Why Riverpod? (by Remi Rousselet)](https://riverpod.dev/docs/concepts/about)
 - [Provider vs Riverpod Comparison](https://riverpod.dev/docs/from_provider/motivation)
+- [Provider GitHub Repository](https://github.com/rrousselGit/provider)
 
 ---
 
@@ -903,8 +1399,15 @@ final provider = StreamProvider.autoDispose((ref) => stream);
 
 - [ ] تعرف إيه الفرق بين InheritedWidget و Provider package؟
 - [ ] فاهم إزاي ChangeNotifier بيشتغل؟
-- [ ] تعرف متى تستخدم `context.watch()` vs `context.read()`؟
-- [ ] فاهم كل أنواع Providers (ChangeNotifier, Future, Stream, Proxy)؟
+- [ ] تعرف متى تستخدم `context.watch()` vs `context.read()` vs `context.select()`؟
+- [ ] فاهم كل أنواع Providers:
+  - [ ] Provider<T> - للـ services
+  - [ ] ChangeNotifierProvider<T> - للـ mutable state
+  - [ ] FutureProvider<T> - للـ async operations (يرجع T?)
+  - [ ] StreamProvider<T> - للـ streams (يرجع T)
+  - [ ] ProxyProvider - للـ DI
+- [ ] عارف إن Provider package **مفيهوش** StateProvider (ده Riverpod فقط)؟
+- [ ] فاهم الفرق بين FutureProvider في Provider (يرجع T?) vs FutureBuilder (يرجع AsyncSnapshot)؟
 - [ ] عارف المشاكل الأساسية في Provider package؟
 - [ ] فاهم ليه Riverpod حل أفضل؟
 
