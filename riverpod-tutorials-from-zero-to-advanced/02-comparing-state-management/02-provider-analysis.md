@@ -25,7 +25,7 @@
 
 ## 📖 إيه هو Provider Package؟
 
-**Provider** هو مكتبة Flutter لـ State Management اتعملت بواسطة **Remi Rousselet** (نفس مطور Riverpod) سنة 2018-2019. الهدف منها كان تبسيط استخدام InheritedWidget.
+مكتبة **Provider** هو حل Flutter لـ State Management اتعملت بواسطة **Remi Rousselet** (نفس مطور Riverpod) سنة 2018-2019. الهدف منها كان تبسيط استخدام InheritedWidget.
 
 ### المشكلة الأصلية
 
