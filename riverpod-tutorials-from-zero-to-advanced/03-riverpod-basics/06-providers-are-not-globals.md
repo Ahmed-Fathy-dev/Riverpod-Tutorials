@@ -6,7 +6,7 @@
 
 ## 📌 الخرافة الشائعة
 
-> ال "Providers في Riverpod هي global variables، وده bad practice!"
+> "Providers في Riverpod هي global variables، وده bad practice!"
 
 **الحقيقة:** Providers **ليست** global variables تقليدية، والخوف منها غير مبرر!
 
@@ -189,10 +189,11 @@ final data = [];      // User data?    ← File 2 - NAME CONFLICT!
 
 ```dart
 // ✅ Riverpod Provider - NOT a global variable!
-@riverpod
-class Counter extends _$Counter {
+final counterProvider = NotifierProvider<Counter, int>(Counter.new);
+
+class Counter extends Notifier<int> {
   @override
-  int build() => 0;
+  int build() => 0;  // Initial state
 
   void increment() => state++;
 }
@@ -222,11 +223,8 @@ void main() {
 }
 
 // Similarly:
-@riverpod
-class Counter extends _$Counter {  // ← Definition (like class)
-  @override
-  int build() => 0;
-}
+final counterProvider = NotifierProvider<Counter, int>(Counter.new);
+// ↑ Definition (like class), not actual state!
 
 // State is created locally per ProviderScope
 // Just like class instances!
@@ -256,8 +254,7 @@ class Counter extends _$Counter {  // ← Definition (like class)
 int add(int a, int b) => a + b;
 
 // ✅ Global Provider - Same safety!
-@riverpod
-int counter(CounterRef ref) => 0;
+final counterProvider = StateProvider<int>((ref) => 0);
 
 // Both are just DEFINITIONS
 // Both are IMMUTABLE
@@ -288,15 +285,21 @@ class UserRepository {
 }
 
 // ✅ Riverpod - Explicit dependency
-@riverpod
-String apiUrl(ApiUrlRef ref) => "https://api.example.com";
+final apiUrlProvider = Provider<String>((ref) {
+  return "https://api.example.com";
+});
 
-@riverpod
-class UserRepository extends _$UserRepository {
-  @override
-  Future<User> build() async {
-    final url = ref.watch(apiUrlProvider);  // Explicit! Clear dependency!
-    return http.get(url);
+final userRepositoryProvider = Provider<UserRepository>((ref) {
+  final url = ref.watch(apiUrlProvider);  // Explicit! Clear dependency!
+  return UserRepository(url);
+});
+
+class UserRepository {
+  final String apiUrl;
+  UserRepository(this.apiUrl);  // Dependency injected!
+
+  Future<User> getUser() {
+    return http.get(apiUrl);
   }
 }
 ```
@@ -332,21 +335,16 @@ test('increments counter', () {
 });
 
 // ✅ Riverpod - Easy to test
-@riverpod
-class Counter extends _$Counter {
-  @override
-  int build() => 0;
-
-  void increment() => state++;
-}
+final counterProvider = StateProvider<int>((ref) => 0);
 
 test('increments counter', () {
-  final container = ProviderContainer.test();  // Fresh state!
+  final container = ProviderContainer();  // Fresh state!
 
-  container.read(counterProvider.notifier).increment();
+  container.read(counterProvider.notifier).state++;
 
   expect(container.read(counterProvider), 1);
 
+  container.dispose();
   // Next test gets fresh state automatically!
   // No manual reset needed!
 });
@@ -373,13 +371,7 @@ test('increments counter', () {
 
 ```dart
 // The provider definition is global:
-@riverpod
-class Counter extends _$Counter {
-  @override
-  int build() => 0;
-
-  void increment() => state++;
-}
+final counterProvider = StateProvider<int>((ref) => 0);
 
 // But the STATE is local!
 void main() {
@@ -391,9 +383,9 @@ void main() {
 
           ProviderScope(    // Nested Scope 2
             overrides: [
-              counterProvider.overrideWith(() => Counter()),
+              counterProvider.overrideWith((ref) => 10),  // Different value!
             ],
-            child: CounterWidget(),  // Different counter = 0
+            child: CounterWidget(),  // Different counter = 10
           ),
         ],
       ),
@@ -401,6 +393,14 @@ void main() {
   );
 
   // Two different counter states in same app!
+}
+
+class CounterWidget extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final count = ref.watch(counterProvider);
+    return Text('$count');
+  }
 }
 ```
 
@@ -413,27 +413,21 @@ void main() {
 
 ---
 
-### الفرق 6: Code Generation Makes It Even Clearer
-
-من [About Code Generation](https://riverpod.dev/docs/concepts/about_code_generation):
-
-> "With code generation, the syntax **no longer looks like we're defining a 'dirty global variable'**."
+### الفرق 6: Clear Syntax (Even with Classic)
 
 </div>
 
 ```dart
-// Looks like a function/class definition, not a variable!
-@riverpod
-class Counter extends _$Counter {  // ← Like defining a class!
-  @override
-  int build() => 0;
+// Looks like a definition, not a variable!
+final counterProvider = StateProvider<int>((ref) => 0);
+//    ↑ final (immutable)
+//                        ↑ Factory function (creates state)
 
-  void increment() => state++;
-}
+// Compare with dangerous global:
+int counter = 0;  // ← Mutable! Can be changed anywhere!
 
-// Compare with old syntax:
-// final counterProvider = NotifierProvider<Counter, int>(...);
-// ↑ This looked more like a variable
+// Provider is more like:
+int getCounter() => 0;  // ← Function definition (safe)
 ```
 
 <div dir="rtl">
@@ -517,7 +511,6 @@ Riverpod Provider = وصفة طبخ (Recipe)
 - [Provider vs Riverpod](https://riverpod.dev/docs/from_provider/provider_vs_riverpod) - "Fully immutable"
 - [ProviderContainers](https://riverpod.dev/docs/concepts2/containers) - "State is actually local"
 - [What's New in Riverpod 3.0](https://riverpod.dev/docs/whats_new) - New testing utilities
-- [About Code Generation](https://riverpod.dev/docs/concepts/about_code_generation) - Improved syntax
 
 ### Why Global Variables are Bad:
 - [Baeldung - Why Global Variables are Bad](https://www.baeldung.com/cs/global-variables)
