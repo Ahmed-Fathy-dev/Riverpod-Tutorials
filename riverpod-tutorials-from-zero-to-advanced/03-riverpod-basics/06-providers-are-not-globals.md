@@ -189,12 +189,11 @@ final data = [];      // User data?    ← File 2 - NAME CONFLICT!
 
 ```dart
 // ✅ Riverpod Provider - NOT a global variable!
-final counterProvider = StateNotifierProvider<Counter, int>((ref) {
-  return Counter();
-});
+final counterProvider = NotifierProvider<Counter, int>(Counter.new);
 
-class Counter extends StateNotifier<int> {
-  Counter() : super(0);
+class Counter extends Notifier<int> {
+  @override
+  int build() => 0;  // Initial state
 
   void increment() => state++;
 }
@@ -224,9 +223,8 @@ void main() {
 }
 
 // Similarly:
-final counterProvider = StateNotifierProvider<Counter, int>((ref) {
-  return Counter();  // ← Definition (like class)
-});
+final counterProvider = NotifierProvider<Counter, int>(Counter.new);
+// ↑ Definition (like class), not actual state!
 
 // State is created locally per ProviderScope
 // Just like class instances!
@@ -385,9 +383,7 @@ void main() {
 
           ProviderScope(    // Nested Scope 2
             overrides: [
-              counterProvider.overrideWithValue(
-                StateController(10),  // Different initial value!
-              ),
+              counterProvider.overrideWith((ref) => 10),  // Different value!
             ],
             child: CounterWidget(),  // Different counter = 10
           ),
