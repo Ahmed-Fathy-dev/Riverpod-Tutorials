@@ -6,7 +6,7 @@
 
 ## 📌 الخرافة الشائعة
 
-> "Providers في Riverpod هي global variables، وده bad practice!"
+> ال "Providers في Riverpod هي global variables، وده bad practice!"
 
 **الحقيقة:** Providers **ليست** global variables تقليدية، والخوف منها غير مبرر!
 
