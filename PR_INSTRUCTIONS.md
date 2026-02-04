@@ -95,9 +95,11 @@ This PR completes the comprehensive Arabic Riverpod 3.0 tutorial with:
 
 ### 🆕 Special Addition: Myth-Busting Article
 
-**File**: `03-riverpod-basics/06-providers-are-not-globals.md` (557 lines)
+**File**: `03-riverpod-basics/06-providers-are-not-globals.md` (554 lines)
 
 Addresses the common misconception that Riverpod providers are dangerous global variables.
+
+**Uses Classic Syntax** (appropriate for Section 03, before Code Generation is taught in Section 06).
 
 **Key Topics:**
 1. Why traditional global variables are dangerous (5 problems)
