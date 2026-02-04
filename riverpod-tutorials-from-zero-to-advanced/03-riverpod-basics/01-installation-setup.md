@@ -357,31 +357,6 @@ analyzer:
 
 ---
 
-## 📁 تنظيم المشروع
-
-للمشاريع الكبيرة، نظم الكود كده:
-
-</div>
-
-```
-lib/
-├── main.dart
-├── providers/
-│   ├── auth_provider.dart
-│   ├── user_provider.dart
-│   └── todos_provider.dart
-├── models/
-│   ├── user.dart
-│   └── todo.dart
-├── screens/
-│   ├── home_screen.dart
-│   ├── profile_screen.dart
-│   └── todos_screen.dart
-└── widgets/
-    ├── todo_item.dart
-    └── user_card.dart
-```
-
 <div dir="rtl">
 
 **مثال:** ملف `providers/auth_provider.dart`
