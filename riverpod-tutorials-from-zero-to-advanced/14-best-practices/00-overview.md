@@ -129,6 +129,56 @@ return Text(name);
 
 ---
 
+### 06. DevTools & Debugging (🆕 Riverpod 3.0)
+
+**ما ستتعلمه:**
+- استخدام Riverpod DevTools
+- State Inspector و Time-travel debugging
+- Dependency Graph visualization
+- Custom observers للـ logging
+
+**مثال سريع:**
+```dart
+// Setup DevTools
+runApp(
+  ProviderScope(
+    observers: [
+      if (kDebugMode) RiverpodDevToolsTracker(),
+    ],
+    child: MyApp(),
+  ),
+);
+```
+
+**📄 التفاصيل:** [06-devtools-debugging.md](./06-devtools-debugging.md)
+
+---
+
+### 07. Lint Rules (🆕 Riverpod 3.0)
+
+**ما ستتعلمه:**
+- تثبيت riverpod_lint
+- القواعد المهمة
+- Auto-fix features
+- تخصيص القواعد
+
+**مثال سريع:**
+```yaml
+# pubspec.yaml
+dev_dependencies:
+  custom_lint: ^0.6.0
+  riverpod_lint: ^2.3.0
+
+# analysis_options.yaml
+analyzer:
+  plugins:
+    - custom_lint
+```
+
+**📄 التفاصيل:** [07-lint-rules.md](./07-lint-rules.md)
+
+---
+
 ## 🎯 من أين تبدأ؟
 
 ### إذا كنت مبتدئ:
