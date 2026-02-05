@@ -120,6 +120,70 @@ Attempt 7+: Continues with 6.4s delay...
 
 ---
 
+## ⚙️ كيفية تخصيص Retry Behavior
+
+في Riverpod 3.0، فيه طريقتين لتخصيص retry behavior:
+
+### 1. Global Configuration (لكل الـ Providers)
+
+يمكنك تخصيص retry للـ application كله عن طريق `ProviderScope` أو `ProviderContainer`:
+
+</div>
+
+```dart
+// Define custom retry function
+Duration? myRetry(int retryCount, Object error) {
+  if (retryCount >= 5) return null; // Stop after 5 attempts
+  if (error is ProviderException) return null; // Don't retry ProviderExceptions
+  return Duration(milliseconds: 200 * (1 << retryCount)); // Exponential backoff
+}
+
+// في Flutter apps
+void main() {
+  runApp(
+    ProviderScope(
+      retry: myRetry, // ✅ Apply to all providers
+      child: MyApp(),
+    ),
+  );
+}
+
+// في pure Dart
+final container = ProviderContainer(
+  retry: myRetry, // ✅ Apply to all providers
+);
+```
+
+<div dir="rtl">
+
+### 2. Per-Provider Configuration (لـ Provider محدد)
+
+يمكنك تخصيص retry لـ provider واحد باستخدام `@Riverpod(retry: ...)`:
+
+</div>
+
+```dart
+// Custom retry function for specific provider
+Duration? customRetry(int retryCount, Object error) {
+  if (error is UnauthorizedException) return null;
+  return Duration(seconds: retryCount + 1);
+}
+
+@Riverpod(retry: customRetry) // ✅ Apply to this provider only
+Future<Data> myData(MyDataRef ref) async {
+  return await api.getData();
+}
+```
+
+<div dir="rtl">
+
+**💡 Note:**
+- إذا حددت `retry` على الـ provider، هيتجاهل الـ global configuration
+- إذا مش محدد على الـ provider، هيستخدم الـ global configuration
+- Default retry يتجاهل `ProviderException` تلقائياً
+
+---
+
 ## 🎨 أمثلة عملية
 
 ### مثال 1: Basic Retry (Default Behavior)
@@ -160,35 +224,35 @@ class UsersListWidget extends ConsumerWidget {
 
 ### مثال 2: Custom Retry Logic
 
-يمكنك تخصيص retry behavior باستخدام `retryAfter`:
+يمكنك تخصيص retry behavior باستخدام `@Riverpod(retry: ...)`:
 
 </div>
 
 ```dart
-@riverpod
-Future<Data> dataWithCustomRetry(Ref ref) async {
-  // Customize retry behavior
-  ref.retryAfter = (error, attemptNumber) {
-    // error: الـ exception اللي حصل
-    // attemptNumber: رقم المحاولة (1, 2, 3, ...)
+// Define custom retry function
+Duration? customRetry(int retryCount, Object error) {
+  // error: الـ exception اللي حصل
+  // retryCount: رقم المحاولة (0, 1, 2, ...)
 
-    // Don't retry on authentication errors
-    if (error is UnauthorizedException) {
-      return null; // null = don't retry
-    }
+  // Don't retry on authentication errors
+  if (error is UnauthorizedException) {
+    return null; // null = don't retry
+  }
 
-    // Don't retry on 404
-    if (error is NotFoundException) {
-      return null;
-    }
+  // Don't retry on 404
+  if (error is NotFoundException) {
+    return null;
+  }
 
-    // Custom delay: wait 1 second × attempt number
-    return Duration(seconds: attemptNumber);
-    // Attempt 1: wait 1s
-    // Attempt 2: wait 2s
-    // Attempt 3: wait 3s
-  };
+  // Custom delay: wait 1 second × (attempt + 1)
+  return Duration(seconds: retryCount + 1);
+  // Attempt 0: wait 1s
+  // Attempt 1: wait 2s
+  // Attempt 2: wait 3s
+}
 
+@Riverpod(retry: customRetry)
+Future<Data> dataWithCustomRetry(DataWithCustomRetryRef ref) async {
   return await api.getData();
 }
 ```
@@ -200,30 +264,31 @@ Future<Data> dataWithCustomRetry(Ref ref) async {
 </div>
 
 ```dart
-@riverpod
-Future<Product> productDetails(Ref ref, String productId) async {
-  ref.retryAfter = (error, attempt) {
-    // Network errors → retry with exponential backoff
-    if (error is NetworkException) {
-      final baseDelay = 200; // milliseconds
-      final delay = baseDelay * pow(2, attempt - 1).toInt();
-      return Duration(milliseconds: delay);
-    }
+// Custom retry based on error type
+Duration? errorBasedRetry(int retryCount, Object error) {
+  // Network errors → retry with exponential backoff
+  if (error is NetworkException) {
+    final baseDelay = 200; // milliseconds
+    final delay = baseDelay * pow(2, retryCount).toInt();
+    return Duration(milliseconds: delay);
+  }
 
-    // Server errors (500) → retry with longer delay
-    if (error is ServerException) {
-      return Duration(seconds: 5);
-    }
+  // Server errors (500) → retry with longer delay
+  if (error is ServerException) {
+    return Duration(seconds: 5);
+  }
 
-    // Client errors (400) → don't retry
-    if (error is ClientException) {
-      return null;
-    }
+  // Client errors (400) → don't retry
+  if (error is ClientException) {
+    return null;
+  }
 
-    // Unknown errors → use default retry
-    return null; // Uses Riverpod's default
-  };
+  // Unknown errors → use default retry
+  return null; // Uses Riverpod's default
+}
 
+@Riverpod(retry: errorBasedRetry)
+Future<Product> productDetails(ProductDetailsRef ref, String productId) async {
   return await api.getProduct(productId);
 }
 ```
@@ -235,23 +300,21 @@ Future<Product> productDetails(Ref ref, String productId) async {
 </div>
 
 ```dart
-@riverpod
-Future<Config> appConfig(Ref ref) async {
-  var attempts = 0;
+// Custom retry with max attempts
+Duration? limitedRetry(int retryCount, Object error) {
   const maxAttempts = 3;
 
-  ref.retryAfter = (error, attempt) {
-    attempts = attempt;
+  // Stop after 3 attempts (retryCount: 0, 1, 2)
+  if (retryCount >= maxAttempts) {
+    return null; // Don't retry anymore
+  }
 
-    // Stop after 3 attempts
-    if (attempts >= maxAttempts) {
-      return null; // Don't retry anymore
-    }
+  // Exponential backoff
+  return Duration(milliseconds: 200 * pow(2, retryCount).toInt());
+}
 
-    // Exponential backoff
-    return Duration(milliseconds: 200 * pow(2, attempt - 1).toInt());
-  };
-
+@Riverpod(retry: limitedRetry)
+Future<Config> appConfig(AppConfigRef ref) async {
   return await api.getConfig();
 }
 ```
@@ -263,26 +326,23 @@ Future<Config> appConfig(Ref ref) async {
 </div>
 
 ```dart
-@riverpod
+// Custom retry with user notification
+Duration? retryWithNotification(int retryCount, Object error) {
+  // Show notification on retry
+  if (retryCount > 0) {
+    // يمكن تعمل notification للـ user
+    print('Retry attempt ${retryCount + 1} after network error');
+    // في الكود الحقيقي، استخدم notification service
+  }
+
+  // Retry with exponential backoff
+  return Duration(milliseconds: 200 * pow(2, retryCount).toInt());
+}
+
+@Riverpod(retry: retryWithNotification)
 class DataFetcher extends _$DataFetcher {
   @override
   Future<Data> build() async {
-    var retryCount = 0;
-
-    ref.retryAfter = (error, attempt) {
-      retryCount = attempt;
-
-      // Show notification on retry
-      if (attempt > 1) {
-        // يمكن تعمل notification للـ user
-        print('Retry attempt $attempt after network error');
-        // في الكود الحقيقي، استخدم ref.read لإرسال notification
-      }
-
-      // Retry with exponential backoff
-      return Duration(milliseconds: 200 * pow(2, attempt - 1).toInt());
-    };
-
     return await api.getData();
   }
 }
@@ -301,23 +361,23 @@ class DataFetcher extends _$DataFetcher {
 </div>
 
 ```dart
-@riverpod
-Future<User> login(Ref ref, String email, String password) async {
-  // Disable retry for authentication
-  ref.retryAfter = (error, attempt) {
-    // Don't retry login failures (wrong credentials)
-    if (error is AuthenticationException) {
-      return null; // Show error immediately
-    }
+// Custom retry for login - only retry network errors
+Duration? loginRetry(int retryCount, Object error) {
+  // Don't retry login failures (wrong credentials)
+  if (error is AuthenticationException) {
+    return null; // Show error immediately
+  }
 
-    // Retry network errors only
-    if (error is NetworkException) {
-      return Duration(seconds: 2);
-    }
+  // Retry network errors only
+  if (error is NetworkException) {
+    return Duration(seconds: 2);
+  }
 
-    return null; // Don't retry by default
-  };
+  return null; // Don't retry by default
+}
 
+@Riverpod(retry: loginRetry)
+Future<User> login(LoginRef ref, String email, String password) async {
   return await authService.login(email, password);
 }
 ```
@@ -329,11 +389,11 @@ Future<User> login(Ref ref, String email, String password) async {
 </div>
 
 ```dart
-@riverpod
-Future<void> deleteAccount(Ref ref) async {
-  // DON'T retry delete operations!
-  ref.retryAfter = (error, attempt) => null;
+// Disable retry for critical operations
+Duration? noRetry(int retryCount, Object error) => null;
 
+@Riverpod(retry: noRetry)
+Future<void> deleteAccount(DeleteAccountRef ref) async {
   await api.deleteUserAccount();
   // إذا فشل، عرض error - مش عايزين نحاول تاني تلقائياً
 }
@@ -379,15 +439,16 @@ Future<List<Product>> products(Ref ref) async {
 
 ```dart
 // ✅ Manual retry with button
-@riverpod
+// Disable auto-retry at provider level
+Duration? noRetryForCheckout(int retryCount, Object error) => null;
+
+@Riverpod(retry: noRetryForCheckout)
 class Checkout extends _$Checkout {
   @override
   Future<Order?> build() async => null;
 
   // No auto-retry - user clicks "retry" button
   Future<void> processPayment(PaymentInfo info) async {
-    ref.retryAfter = (error, attempt) => null; // Disable auto-retry
-
     state = const AsyncValue.loading();
 
     state = await AsyncValue.guard(() async {
@@ -482,39 +543,33 @@ class ProductsList extends ConsumerWidget {
 </div>
 
 ```dart
-@riverpod
-Future<Data> dataWithLogging(Ref ref) async {
-  var retryAttempts = 0;
+// Custom retry with logging
+Duration? retryWithLogging(int retryCount, Object error) {
+  // Log retry attempts
+  analyticsService.logEvent('data_fetch_retry', {
+    'attempt': retryCount + 1,
+    'error': error.toString(),
+    'timestamp': DateTime.now().toIso8601String(),
+  });
 
-  ref.retryAfter = (error, attempt) {
-    retryAttempts = attempt;
+  // Exponential backoff
+  return Duration(milliseconds: 200 * pow(2, retryCount).toInt());
+}
 
-    // Log retry attempts
-    analyticsService.logEvent('data_fetch_retry', {
-      'attempt': attempt,
-      'error': error.toString(),
-      'timestamp': DateTime.now().toIso8601String(),
-    });
-
-    // Exponential backoff
-    return Duration(milliseconds: 200 * pow(2, attempt - 1).toInt());
-  };
-
+@Riverpod(retry: retryWithLogging)
+Future<Data> dataWithLogging(DataWithLoggingRef ref) async {
   try {
     final data = await api.getData();
 
-    // Log success (with retry count)
-    if (retryAttempts > 0) {
-      analyticsService.logEvent('data_fetch_success_after_retry', {
-        'attempts': retryAttempts,
-      });
-    }
+    // Log success
+    analyticsService.logEvent('data_fetch_success', {
+      'timestamp': DateTime.now().toIso8601String(),
+    });
 
     return data;
   } catch (e) {
     // Log final failure
     analyticsService.logEvent('data_fetch_failed', {
-      'attempts': retryAttempts,
       'error': e.toString(),
     });
     rethrow;
@@ -547,18 +602,18 @@ Future<List<Post>> posts(Ref ref) async {
 </div>
 
 ```dart
-// ✅ Good - no auto-retry for writes
+// ✅ Good - auto-retry for reads only
+// Note: retry only applies to build() method (reading posts)
+// Mutation methods like createPost don't auto-retry
 @riverpod
 class PostManager extends _$PostManager {
   @override
   Future<List<Post>> build() async {
-    return await api.getPosts();
+    return await api.getPosts(); // This will auto-retry on failure
   }
 
   Future<void> createPost(Post post) async {
-    // Disable auto-retry
-    ref.retryAfter = (error, attempt) => null;
-
+    // Mutations don't auto-retry by default
     await api.createPost(post);
   }
 }
@@ -572,23 +627,23 @@ class PostManager extends _$PostManager {
 
 ```dart
 // ✅ Good - different retry for different errors
-@riverpod
-Future<Data> smartRetry(Ref ref) async {
-  ref.retryAfter = (error, attempt) {
-    if (error is NetworkException) {
-      // Network errors → retry with exponential backoff
-      return Duration(milliseconds: 200 * pow(2, attempt - 1).toInt());
-    }
+Duration? smartRetryLogic(int retryCount, Object error) {
+  if (error is NetworkException) {
+    // Network errors → retry with exponential backoff
+    return Duration(milliseconds: 200 * pow(2, retryCount).toInt());
+  }
 
-    if (error is ServerException && error.statusCode == 503) {
-      // Service unavailable → retry with longer delay
-      return Duration(seconds: 10);
-    }
+  if (error is ServerException && error.statusCode == 503) {
+    // Service unavailable → retry with longer delay
+    return Duration(seconds: 10);
+  }
 
-    // Client errors (400) → don't retry
-    return null;
-  };
+  // Client errors (400) → don't retry
+  return null;
+}
 
+@Riverpod(retry: smartRetryLogic)
+Future<Data> smartRetry(SmartRetryRef ref) async {
   return await api.getData();
 }
 ```
@@ -601,21 +656,18 @@ Future<Data> smartRetry(Ref ref) async {
 
 ```dart
 // ✅ Good - limit retry attempts
-@riverpod
-Future<Config> configWithLimit(Ref ref) async {
+Duration? limitedRetryLogic(int retryCount, Object error) {
   const maxRetries = 5;
-  var attemptCount = 0;
 
-  ref.retryAfter = (error, attempt) {
-    attemptCount = attempt;
+  if (retryCount >= maxRetries) {
+    return null; // Stop retrying
+  }
 
-    if (attemptCount > maxRetries) {
-      return null; // Stop retrying
-    }
+  return Duration(milliseconds: 200 * pow(2, retryCount).toInt());
+}
 
-    return Duration(milliseconds: 200 * pow(2, attempt - 1).toInt());
-  };
-
+@Riverpod(retry: limitedRetryLogic)
+Future<Config> configWithLimit(ConfigWithLimitRef ref) async {
   return await api.getConfig();
 }
 ```
@@ -674,9 +726,10 @@ Future<void> createOrder(Ref ref, Order order) async {
 }
 
 // ✅ GOOD - disable retry
-@riverpod
-Future<void> createOrder(Ref ref, Order order) async {
-  ref.retryAfter = (error, attempt) => null; // Disable
+Duration? noRetryForOrder(int retryCount, Object error) => null;
+
+@Riverpod(retry: noRetryForOrder)
+Future<void> createOrder(CreateOrderRef ref, Order order) async {
   await api.createOrder(order);
 }
 ```
@@ -689,15 +742,15 @@ Future<void> createOrder(Ref ref, Order order) async {
 
 ```dart
 // ❌ BAD - delay too long (poor UX)
-ref.retryAfter = (error, attempt) {
+Duration? badRetryTooLong(int retryCount, Object error) {
   return Duration(minutes: 1); // User waits 1 minute!
-};
+}
 
 // ✅ GOOD - reasonable delays
-ref.retryAfter = (error, attempt) {
-  return Duration(milliseconds: 200 * pow(2, attempt - 1).toInt());
+Duration? goodRetryDelay(int retryCount, Object error) {
+  return Duration(milliseconds: 200 * pow(2, retryCount).toInt());
   // Max ~6.4 seconds
-};
+}
 ```
 
 <div dir="rtl">
@@ -708,13 +761,13 @@ ref.retryAfter = (error, attempt) {
 
 ```dart
 // ❌ BAD - retrying validation errors (useless)
-ref.retryAfter = (error, attempt) {
+Duration? badRetryAll(int retryCount, Object error) {
   // يعيد المحاولة حتى لو validation error!
   return Duration(seconds: 1);
-};
+}
 
 // ✅ GOOD - retry only recoverable errors
-ref.retryAfter = (error, attempt) {
+Duration? goodRetrySelective(int retryCount, Object error) {
   if (error is ValidationException) {
     return null; // Don't retry validation errors
   }
@@ -737,7 +790,7 @@ ref.retryAfter = (error, attempt) {
 |---------|-------------|--------------|
 | **Auto-Retry** | ❌ Manual only | ✅ Built-in |
 | **Retry Logic** | Write yourself | Default exponential backoff |
-| **Customization** | Full control | `ref.retryAfter` |
+| **Customization** | Full control | `@Riverpod(retry: ...)` |
 | **Network Resilience** | Low | High |
 | **Code Complexity** | High | Low |
 
@@ -745,7 +798,7 @@ ref.retryAfter = (error, attempt) {
 
 1. ✅ **Auto-retry enabled by default** في Riverpod 3.0
 2. ✅ **Exponential backoff** - ينتظر أطول مع كل محاولة
-3. ✅ **Customizable** - استخدم `ref.retryAfter` للتحكم
+3. ✅ **Customizable** - استخدم `@Riverpod(retry: customRetry)` للتحكم
 4. ✅ **Smart** - يتعامل مع transient failures تلقائياً
 5. ⚠️ **Disable for writes** - عطّل retry للـ POST/PUT/DELETE
 6. ⚠️ **Error-specific** - retry بناءً على نوع الـ error
