@@ -619,6 +619,325 @@ class DataWithRetry extends _$DataWithRetry {
 
 ---
 
+## 🛡️ Async Safety مع ref.mounted
+
+**جديد في Riverpod 3.0!** 🆕
+
+عندما تتعامل مع async operations، في خطر إن الـ provider/notifier يكون اتعمل dispose خلال الـ await. ده بيسبب **race conditions** وممكن يؤدي لـ exceptions أو memory leaks.
+
+الحل: استخدم `ref.mounted` للتحقق قبل أي state update.
+
+### المشكلة: Race Conditions في Error Handling
+
+</div>
+
+```dart
+// ❌ خطر - بدون ref.mounted
+@riverpod
+class UserProfile extends _$UserProfile {
+  @override
+  Future<User> build() async {
+    return await api.getUser();
+  }
+
+  Future<void> updateProfile(User updatedUser) async {
+    state = const AsyncValue.loading();
+
+    try {
+      await api.updateUser(updatedUser);
+      final freshUser = await api.getUser();
+
+      // ⚠️ خطر! لو User طلع من الشاشة خلال الـ await،
+      // الـ notifier قد يكون disposed والـ state update هيرمي exception!
+      state = AsyncValue.data(freshUser);
+    } catch (e, s) {
+      // ⚠️ نفس الخطر في catch!
+      state = AsyncValue.error(e, s);
+    }
+  }
+}
+```
+
+<div dir="rtl">
+
+**النتيجة:**
+- Exception: "Cannot update state of disposed notifier"
+- Memory leaks
+- Unpredictable behavior
+
+### الحل: استخدم ref.mounted
+
+</div>
+
+```dart
+// ✅ آمن - مع ref.mounted
+@riverpod
+class UserProfile extends _$UserProfile {
+  @override
+  Future<User> build() async {
+    return await api.getUser();
+  }
+
+  Future<void> updateProfile(User updatedUser) async {
+    state = const AsyncValue.loading();
+
+    try {
+      await api.updateUser(updatedUser);
+
+      // تحقق قبل fetch
+      if (!ref.mounted) return;
+
+      final freshUser = await api.getUser();
+
+      // تحقق قبل update
+      if (!ref.mounted) return;
+
+      state = AsyncValue.data(freshUser);
+    } catch (e, s) {
+      // تحقق حتى في catch
+      if (ref.mounted) {
+        state = AsyncValue.error(e, s);
+      }
+    }
+  }
+}
+```
+
+<div dir="rtl">
+
+### مع AsyncValue.guard()
+
+`ref.mounted` يشتغل بشكل ممتاز مع `AsyncValue.guard()`:
+
+</div>
+
+```dart
+@riverpod
+class Products extends _$Products {
+  @override
+  Future<List<Product>> build() async {
+    final products = await api.getProducts();
+
+    // تحقق بعد async operation
+    if (!ref.mounted) {
+      throw Exception('Provider disposed');
+    }
+
+    return products;
+  }
+
+  Future<void> deleteProduct(String id) async {
+    state = const AsyncValue.loading();
+
+    // استخدم guard مع mounted check
+    state = await AsyncValue.guard(() async {
+      await api.deleteProduct(id);
+
+      // تحقق بعد delete
+      if (!ref.mounted) {
+        throw Exception('Provider disposed');
+      }
+
+      final updatedProducts = await api.getProducts();
+
+      // تحقق بعد fetch
+      if (!ref.mounted) {
+        throw Exception('Provider disposed');
+      }
+
+      return updatedProducts;
+    });
+  }
+
+  Future<void> addProduct(Product product) async {
+    // Pattern مع guard و mounted
+    state = await AsyncValue.guard(() async {
+      await api.addProduct(product);
+
+      if (!ref.mounted) throw Exception('Disposed');
+
+      return await api.getProducts();
+    });
+
+    // guard تمسك الـ exception تلقائياً وتحوله لـ AsyncError
+  }
+}
+```
+
+<div dir="rtl">
+
+### في Multi-Step Operations
+
+</div>
+
+```dart
+@riverpod
+class Checkout extends _$Checkout {
+  @override
+  Future<Order?> build() async => null;
+
+  Future<void> processOrder(Cart cart) async {
+    state = const AsyncValue.loading();
+
+    try {
+      // Step 1: Validate
+      await validateCart(cart);
+      if (!ref.mounted) return; // تحقق بعد كل step
+
+      // Step 2: Calculate totals
+      final totals = await calculateTotals(cart);
+      if (!ref.mounted) return;
+
+      // Step 3: Process payment
+      final payment = await processPayment(totals);
+      if (!ref.mounted) return;
+
+      // Step 4: Create order
+      final order = await createOrder(cart, payment);
+      if (!ref.mounted) return;
+
+      // Step 5: Update state
+      state = AsyncValue.data(order);
+    } catch (e, s) {
+      // تحقق قبل error state
+      if (ref.mounted) {
+        state = AsyncValue.error(e, s);
+      }
+    }
+  }
+}
+```
+
+<div dir="rtl">
+
+### مع Retry Logic
+
+</div>
+
+```dart
+@riverpod
+class DataWithRetry extends _$DataWithRetry {
+  @override
+  Future<Data> build() async {
+    return await fetchDataWithRetry();
+  }
+
+  Future<Data> fetchDataWithRetry({int maxRetries = 3}) async {
+    var attempts = 0;
+
+    while (attempts < maxRetries) {
+      try {
+        final data = await api.getData();
+
+        // تحقق قبل return
+        if (!ref.mounted) {
+          throw Exception('Provider disposed');
+        }
+
+        return data;
+      } catch (e) {
+        attempts++;
+
+        // تحقق قبل retry
+        if (!ref.mounted) {
+          throw Exception('Provider disposed during retry');
+        }
+
+        if (attempts >= maxRetries) {
+          rethrow;
+        }
+
+        // Wait before retry
+        await Future.delayed(Duration(seconds: attempts * 2));
+
+        // تحقق بعد delay
+        if (!ref.mounted) {
+          throw Exception('Provider disposed during delay');
+        }
+      }
+    }
+
+    throw Exception('Max retries reached');
+  }
+}
+```
+
+<div dir="rtl">
+
+### Best Practices:
+
+1. **دايماً تحقق بعد await:**
+   ```dart
+   final result = await someOperation();
+   if (!ref.mounted) return; // 👈 Critical
+   state = result;
+   ```
+
+2. **في try-catch blocks:**
+   ```dart
+   try {
+     final data = await api.call();
+     if (!ref.mounted) return;
+     state = AsyncValue.data(data);
+   } catch (e, s) {
+     if (ref.mounted) { // 👈 في catch أيضاً
+       state = AsyncValue.error(e, s);
+     }
+   }
+   ```
+
+3. **في كل step من multi-step operation:**
+   ```dart
+   await step1();
+   if (!ref.mounted) return;
+   await step2();
+   if (!ref.mounted) return;
+   await step3();
+   ```
+
+4. **مع guard():**
+   ```dart
+   state = await AsyncValue.guard(() async {
+     final result = await api.call();
+     if (!ref.mounted) throw Exception('Disposed');
+     return result;
+   });
+   ```
+
+### ⚠️ أخطاء شائعة:
+
+**خطأ 1: نسيان التحقق**
+```dart
+// ❌ Race condition
+await api.call();
+state = result; // خطر!
+```
+
+**خطأ 2: التحقق في المكان الخطأ**
+```dart
+// ❌ التحقق قبل await (مفيش فايدة)
+if (!ref.mounted) return;
+await api.call();
+state = result; // لسه خطر!
+```
+
+**خطأ 3: نسيان التحقق في catch**
+```dart
+// ❌ خطر في catch block
+try {
+  await api.call();
+  if (!ref.mounted) return;
+  state = data;
+} catch (e, s) {
+  state = error; // ❌ مفيش mounted check!
+}
+```
+
+**المصدر الرسمي:**
+- [What's new in Riverpod 3.0 | Riverpod](https://riverpod.dev/docs/whats_new) - ref.mounted property
+
+---
+
 ## 🎨 Error UI Patterns
 
 ### 1. Inline Error (في نفس المكان)

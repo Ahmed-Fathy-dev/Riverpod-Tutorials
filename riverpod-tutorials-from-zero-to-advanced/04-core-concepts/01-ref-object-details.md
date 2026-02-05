@@ -712,6 +712,311 @@ final cachedDataProvider = AsyncNotifierProvider<CachedDataNotifier, Data>(
 
 <div dir="rtl">
 
+### 10. ref.mounted - Async Safety Check
+
+**جديد في Riverpod 3.0!** 🆕
+
+الـ `ref.mounted` هي property بترجعلك `bool` بتقولك إذا الـ provider أو الـ notifier لسه موجود ولا اتعمل dispose.
+
+**الفكرة:** زي `BuildContext.mounted` في Flutter، بتحميك من race conditions في الـ async operations.
+
+</div>
+
+```dart
+@riverpod
+Future<User> fetchUser(Ref ref, String userId) async {
+  // Network request يأخذ وقت
+  final user = await api.getUser(userId);
+
+  // ⚠️ لو الـ provider اتعمله dispose خلال الـ await،
+  // مينفعش نحدث الـ state!
+  if (!ref.mounted) {
+    // Provider was disposed, don't update
+    return Future.error('Provider disposed');
+  }
+
+  // آمن الآن - الـ provider لسه موجود
+  return user;
+}
+```
+
+<div dir="rtl">
+
+#### متى تستخدمه؟
+
+**1. في Async Operations طويلة:**
+
+</div>
+
+```dart
+class UserProfileNotifier extends AsyncNotifier<UserProfile> {
+  @override
+  Future<UserProfile> build() async {
+    // Fetch من API - يمكن يأخذ ثواني
+    final profile = await api.getUserProfile();
+
+    // تحقق قبل تحديث الـ state
+    if (!ref.mounted) {
+      throw Exception('Notifier disposed during fetch');
+    }
+
+    return profile;
+  }
+
+  Future<void> updateProfile(UserProfile newProfile) async {
+    state = const AsyncValue.loading();
+
+    try {
+      // Network request
+      await api.updateProfile(newProfile);
+
+      // ⚠️ لو User طلع من الشاشة خلال الـ await
+      if (!ref.mounted) {
+        return; // مش هنحدث الـ state
+      }
+
+      // آمن - نحدث الـ state
+      state = AsyncValue.data(newProfile);
+    } catch (e, s) {
+      if (ref.mounted) {
+        state = AsyncValue.error(e, s);
+      }
+    }
+  }
+}
+
+final userProfileProvider = AsyncNotifierProvider<UserProfileNotifier, UserProfile>(
+  () => UserProfileNotifier(),
+);
+```
+
+<div dir="rtl">
+
+**2. في Multi-Step Async Workflows:**
+
+</div>
+
+```dart
+class CheckoutNotifier extends AsyncNotifier<CheckoutState> {
+  @override
+  Future<CheckoutState> build() async {
+    return CheckoutState.initial();
+  }
+
+  Future<void> processCheckout(Order order) async {
+    state = const AsyncValue.loading();
+
+    try {
+      // Step 1: Validate order
+      await validateOrder(order);
+      if (!ref.mounted) return;
+
+      // Step 2: Process payment
+      final payment = await processPayment(order);
+      if (!ref.mounted) return;
+
+      // Step 3: Create order
+      final confirmedOrder = await createOrder(payment);
+      if (!ref.mounted) return;
+
+      // Step 4: Send confirmation
+      await sendConfirmation(confirmedOrder);
+      if (!ref.mounted) return;
+
+      state = AsyncValue.data(CheckoutState.success(confirmedOrder));
+    } catch (e, s) {
+      if (ref.mounted) {
+        state = AsyncValue.error(e, s);
+      }
+    }
+  }
+}
+```
+
+<div dir="rtl">
+
+**3. مع Navigation:**
+
+</div>
+
+```dart
+class LoginNotifier extends AsyncNotifier<User?> {
+  @override
+  Future<User?> build() async => null;
+
+  Future<void> login(String email, String password) async {
+    state = const AsyncValue.loading();
+
+    try {
+      // Login API call
+      final user = await authService.login(email, password);
+
+      // تحقق قبل update
+      if (!ref.mounted) {
+        // User navigated away
+        return;
+      }
+
+      state = AsyncValue.data(user);
+
+      // Navigate to home
+      // (في الكود الحقيقي، ده يكون في widget مع listen)
+    } catch (e, s) {
+      if (ref.mounted) {
+        state = AsyncValue.error(e, s);
+      }
+    }
+  }
+}
+```
+
+<div dir="rtl">
+
+#### ليه ده مهم؟
+
+**بدون ref.mounted:**
+```dart
+// ❌ خطر - Race Condition
+Future<void> loadData() async {
+  final data = await api.getData();
+  state = data; // ⚠️ قد يكون الـ provider اتعمل dispose!
+  // Result: Exception أو memory leak
+}
+```
+
+**مع ref.mounted:**
+```dart
+// ✅ آمن
+Future<void> loadData() async {
+  final data = await api.getData();
+
+  if (!ref.mounted) return; // خرجنا بأمان
+
+  state = data; // آمن - الـ provider موجود
+}
+```
+
+#### Best Practices:
+
+1. **دايماً تحقق بعد await**
+   ```dart
+   final result = await someAsyncOperation();
+   if (!ref.mounted) return; // 👈 هنا
+   ```
+
+2. **في try-catch:**
+   ```dart
+   try {
+     final data = await api.getData();
+     if (!ref.mounted) return;
+     state = AsyncValue.data(data);
+   } catch (e, s) {
+     if (ref.mounted) { // 👈 وهنا
+       state = AsyncValue.error(e, s);
+     }
+   }
+   ```
+
+3. **في Multi-step operations:**
+   ```dart
+   await step1();
+   if (!ref.mounted) return;
+
+   await step2();
+   if (!ref.mounted) return;
+
+   await step3();
+   ```
+
+#### ⚠️ أخطاء شائعة:
+
+**خطأ 1: نسيان التحقق:**
+```dart
+// ❌ خطأ
+Future<void> loadUser() async {
+  final user = await api.getUser();
+  state = user; // Race condition!
+}
+```
+
+**خطأ 2: التحقق قبل الـ await:**
+```dart
+// ❌ خطأ - التحقق في المكان الخطأ
+Future<void> loadUser() async {
+  if (!ref.mounted) return; // 👈 هنا مبدري!
+
+  final user = await api.getUser();
+  // الـ provider قد يكون disposed بعد الـ await
+  state = user; // Race condition!
+}
+```
+
+**خطأ 3: استخدامه في Synchronous code:**
+```dart
+// ❌ مش محتاج - مفيش async
+void increment() {
+  if (!ref.mounted) return; // غير ضروري
+  state++;
+}
+```
+
+</div>
+
+```dart
+// ✅ مثال كامل صحيح
+class DataManagerNotifier extends AsyncNotifier<List<Data>> {
+  @override
+  Future<List<Data>> build() async {
+    final data = await repository.fetchData();
+
+    // تحقق بعد الـ async operation
+    if (!ref.mounted) {
+      throw Exception('Notifier disposed');
+    }
+
+    return data;
+  }
+
+  Future<void> refreshData() async {
+    state = const AsyncValue.loading();
+
+    try {
+      final freshData = await repository.fetchData();
+
+      // تحقق دايماً
+      if (!ref.mounted) return;
+
+      state = AsyncValue.data(freshData);
+    } catch (e, s) {
+      // حتى في الـ error
+      if (ref.mounted) {
+        state = AsyncValue.error(e, s);
+      }
+    }
+  }
+
+  Future<void> addData(Data newData) async {
+    try {
+      await repository.addData(newData);
+
+      if (!ref.mounted) return;
+
+      final currentData = state.value ?? [];
+      state = AsyncValue.data([...currentData, newData]);
+    } catch (e, s) {
+      if (ref.mounted) {
+        state = AsyncValue.error(e, s);
+      }
+    }
+  }
+}
+```
+
+<div dir="rtl">
+
+**المصدر الرسمي:**
+- [What's new in Riverpod 3.0](https://riverpod.dev/docs/whats_new) - Ref.mounted property
+
 ---
 
 ## 📊 جدول مقارنة شامل
@@ -728,6 +1033,7 @@ final cachedDataProvider = AsyncNotifierProvider<CachedDataNotifier, Data>(
 | **onDispose** | Cleanup | - | Close connections |
 | **onCancel** | AutoDispose | - | Pause operations |
 | **onResume** | AutoDispose | - | Resume operations |
+| **mounted** 🆕 | بعد async ops | ❌ لا | Async safety check |
 
 ---
 
@@ -946,6 +1252,228 @@ final goodTimerProvider = NotifierProvider<GoodTimerNotifier, int>(
 ```
 
 <div dir="rtl">
+
+### خطأ 4: استخدام ref methods بعد dispose
+
+**جديد في Riverpod 3.0!** 🆕
+
+في Riverpod 3.0، كل الـ ref methods (ما عدا `mounted`) **ترمي exception** لو استخدمتها بعد ما الـ provider يتعمل dispose.
+
+</div>
+
+```dart
+// ❌ WRONG - Using ref after dispose
+@riverpod
+class DataManager extends _$DataManager {
+  @override
+  Future<Data> build() async {
+    return await api.getData();
+  }
+
+  Future<void> updateData() async {
+    // Long async operation
+    await Future.delayed(Duration(seconds: 5));
+
+    // ⚠️ خطر! لو Provider اتعمل dispose خلال الـ 5 ثواني،
+    // ref.read() هيرمي exception!
+    final currentState = ref.read(dataManagerProvider);
+    // Exception: "Cannot use ref methods after dispose"
+  }
+}
+```
+
+<div dir="rtl">
+
+**المشكلة:**
+- Provider قد يتعمل له dispose بسبب:
+  - User طلع من الشاشة
+  - Provider اتعمل له invalidate
+  - AutoDispose أزال الـ provider
+- لو استخدمت `ref.read()`, `ref.watch()`, `ref.invalidate()`, إلخ بعد dispose → Exception!
+
+**الحل: استخدم ref.mounted للتحقق**
+
+</div>
+
+```dart
+// ✅ CORRECT - Check ref.mounted first
+@riverpod
+class DataManager extends _$DataManager {
+  @override
+  Future<Data> build() async {
+    return await api.getData();
+  }
+
+  Future<void> updateData() async {
+    // Long async operation
+    await Future.delayed(Duration(seconds: 5));
+
+    // ✅ تحقق أول قبل أي ref method
+    if (!ref.mounted) {
+      return; // Provider disposed, exit safely
+    }
+
+    // آمن الآن - Provider لسه موجود
+    final currentState = ref.read(dataManagerProvider);
+    // Do something with currentState
+  }
+
+  Future<void> refreshData() async {
+    final data = await api.getData();
+
+    // تحقق قبل update
+    if (!ref.mounted) return;
+
+    // Update state safely
+    state = AsyncValue.data(data);
+  }
+}
+```
+
+<div dir="rtl">
+
+**مع Notifier.state:**
+
+في Riverpod 3.0، `state` setter أيضاً يرمي exception بعد dispose:
+
+</div>
+
+```dart
+// ❌ WRONG
+class Counter extends Notifier<int> {
+  @override
+  int build() => 0;
+
+  Future<void> incrementAsync() async {
+    await Future.delayed(Duration(seconds: 2));
+
+    // ⚠️ لو disposed خلال الـ delay، هيرمي exception!
+    state++; // Exception!
+  }
+}
+
+// ✅ CORRECT
+class Counter extends Notifier<int> {
+  @override
+  int build() => 0;
+
+  Future<void> incrementAsync() async {
+    await Future.delayed(Duration(seconds: 2));
+
+    // تحقق قبل update
+    if (!ref.mounted) return;
+
+    state++; // Safe
+  }
+}
+```
+
+<div dir="rtl">
+
+**القاعدة الذهبية:**
+
+> **بعد أي `await`، دايماً تحقق من `ref.mounted` قبل استخدام أي ref method أو state update!**
+
+</div>
+
+```dart
+// ✅ The safe pattern
+Future<void> someAsyncOperation() async {
+  // Some async work
+  await something();
+
+  // 👇 Always check after await!
+  if (!ref.mounted) return;
+
+  // Now safe to use ref methods or update state
+  ref.read(...);
+  state = ...;
+}
+```
+
+<div dir="rtl">
+
+**الـ Exception اللي هتشوفها:**
+
+```
+StateError: Cannot update state, Notifier has already been disposed
+```
+
+أو
+
+```
+StateError: Cannot call ref methods after dispose
+```
+
+**متى تستخدم mounted:**
+- ✅ **بعد أي await** في async functions
+- ✅ **قبل state updates** في Notifier
+- ✅ **قبل ref.read/watch/listen** بعد async operations
+- ✅ **في multi-step async workflows**
+- ❌ **مش محتاج** في synchronous code
+
+**مثال كامل صحيح:**
+
+</div>
+
+```dart
+@riverpod
+class UserProfile extends _$UserProfile {
+  @override
+  Future<User> build(String userId) async {
+    final user = await api.getUser(userId);
+
+    // تحقق بعد async
+    if (!ref.mounted) {
+      throw Exception('Disposed during fetch');
+    }
+
+    return user;
+  }
+
+  Future<void> updateProfile(User updates) async {
+    state = const AsyncValue.loading();
+
+    try {
+      // Step 1: Update on server
+      await api.updateUser(updates);
+      if (!ref.mounted) return; // تحقق
+
+      // Step 2: Fetch fresh data
+      final freshUser = await api.getUser(updates.id);
+      if (!ref.mounted) return; // تحقق
+
+      // Step 3: Update state
+      state = AsyncValue.data(freshUser);
+    } catch (e, s) {
+      // تحقق حتى في catch
+      if (ref.mounted) {
+        state = AsyncValue.error(e, s);
+      }
+    }
+  }
+
+  Future<void> deleteAccount() async {
+    try {
+      await api.deleteAccount();
+
+      if (!ref.mounted) return;
+
+      // Navigate away (في الكود الحقيقي، ده يكون في widget)
+      // navigator.pushReplacement(...)
+    } catch (e) {
+      if (ref.mounted) {
+        // Show error
+      }
+    }
+  }
+}
+```
+
+<div dir="rtl">
+
+**المصدر الرسمي:**
+- [What's new in Riverpod 3.0 | Riverpod](https://riverpod.dev/docs/whats_new) - Breaking change: ref methods throw after dispose
 
 ---
 
