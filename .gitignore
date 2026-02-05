@@ -1,0 +1,13 @@
+# Internal documentation - not for public viewing
+.docs/
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
