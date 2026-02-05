@@ -1691,6 +1691,581 @@ class TodosScreen extends ConsumerWidget {
 
 ---
 
+## 🎯 Enhanced Error Handling - Riverpod 3.0
+
+### 🆕 ProviderException (جديد في Riverpod 3.0)
+
+**ProviderException** هو wrapper جديد للـ errors في Riverpod 3.0، بيساعدك تحسن الـ error messages وتضيف context.
+
+#### المشكلة: Generic Error Messages
+
+</div>
+
+```dart
+// ❌ BAD - Generic error
+@riverpod
+Future<User> user(UserRef ref, String userId) async {
+  final response = await api.getUser(userId);
+
+  if (response.statusCode == 404) {
+    throw Exception('Not found');  // ❌ Not helpful!
+  }
+
+  return response.data;
+}
+
+// في الـ UI:
+// Error: Exception: Not found  ← مش واضح إيه اللي Not found!
+```
+
+<div dir="rtl">
+
+#### الحل: ProviderException
+
+</div>
+
+```dart
+// ✅ GOOD - Clear error with context
+@riverpod
+Future<User> user(UserRef ref, String userId) async {
+  try {
+    final response = await api.getUser(userId);
+
+    if (response.statusCode == 404) {
+      throw ProviderException(
+        'User not found',
+        provider: userProvider(userId),
+        cause: 'User with ID $userId does not exist',
+      );
+    }
+
+    return response.data;
+
+  } catch (error, stackTrace) {
+    if (error is ProviderException) rethrow;
+
+    // Wrap other errors
+    throw ProviderException(
+      'Failed to load user',
+      provider: userProvider(userId),
+      cause: error,
+      stackTrace: stackTrace,
+    );
+  }
+}
+
+// في الـ UI:
+// Error: Failed to load user
+// Cause: User with ID abc123 does not exist
+// Provider: userProvider(abc123)
+```
+
+<div dir="rtl">
+
+---
+
+### 📝 Error Categorization (تصنيف الأخطاء)
+
+من المهم تفرق بين أنواع الـ errors المختلفة:
+
+#### 1. User Errors (أخطاء المستخدم)
+
+</div>
+
+```dart
+// أخطاء ناتجة من input خطأ من الـ user
+class ValidationException implements Exception {
+  final String message;
+  final Map<String, String> fieldErrors;
+
+  ValidationException(this.message, [this.fieldErrors = const {}]);
+
+  @override
+  String toString() => message;
+}
+
+@riverpod
+class Registration extends _$Registration {
+  @override
+  User? build() => null;
+
+  @mutation
+  Future<User> register(String email, String password) async {
+    // Validate input
+    final errors = <String, String>{};
+
+    if (!email.contains('@')) {
+      errors['email'] = 'Invalid email format';
+    }
+
+    if (password.length < 8) {
+      errors['password'] = 'Password must be at least 8 characters';
+    }
+
+    if (errors.isNotEmpty) {
+      throw ValidationException('Invalid input', errors);
+    }
+
+    // Proceed with registration
+    return await api.register(email, password);
+  }
+}
+
+// في الـ UI - Show field-specific errors
+class RegistrationForm extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final controller = ref.watch(registrationProvider.notifier);
+    final mutation = ref.watch(controller.registerMutation);
+
+    String? emailError;
+    String? passwordError;
+
+    if (mutation case MutationError(:final error)) {
+      if (error is ValidationException) {
+        emailError = error.fieldErrors['email'];
+        passwordError = error.fieldErrors['password'];
+      }
+    }
+
+    return Column(
+      children: [
+        TextField(
+          decoration: InputDecoration(
+            labelText: 'Email',
+            errorText: emailError,  // ✅ Field-specific error
+          ),
+        ),
+        TextField(
+          decoration: InputDecoration(
+            labelText: 'Password',
+            errorText: passwordError,  // ✅ Field-specific error
+          ),
+          obscureText: true,
+        ),
+        // Submit button...
+      ],
+    );
+  }
+}
+```
+
+<div dir="rtl">
+
+#### 2. Network Errors (أخطاء الشبكة)
+
+</div>
+
+```dart
+// أخطاء ناتجة من مشاكل في الـ network
+class NetworkException implements Exception {
+  final String message;
+  final int? statusCode;
+  final bool isRetryable;
+
+  NetworkException(
+    this.message, {
+    this.statusCode,
+    this.isRetryable = true,
+  });
+
+  @override
+  String toString() => message;
+}
+
+@riverpod
+Future<Data> data(DataRef ref) async {
+  try {
+    final response = await api.getData();
+    return response.data;
+
+  } on DioException catch (e) {
+    if (e.type == DioExceptionType.connectionTimeout) {
+      throw NetworkException(
+        'Connection timeout. Please check your internet.',
+        isRetryable: true,
+      );
+    }
+
+    if (e.type == DioExceptionType.connectionError) {
+      throw NetworkException(
+        'No internet connection',
+        isRetryable: true,
+      );
+    }
+
+    if (e.response?.statusCode == 500) {
+      throw NetworkException(
+        'Server error. Please try again later.',
+        statusCode: 500,
+        isRetryable: true,
+      );
+    }
+
+    throw NetworkException(
+      'Network error occurred',
+      statusCode: e.response?.statusCode,
+      isRetryable: false,
+    );
+  }
+}
+
+// في الـ UI - Show retry for retryable errors
+class DataWidget extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final dataAsync = ref.watch(dataProvider);
+
+    return dataAsync.when(
+      data: (data) => DataView(data),
+      loading: () => CircularProgressIndicator(),
+      error: (error, stack) {
+        final isRetryable = error is NetworkException && error.isRetryable;
+
+        return ErrorView(
+          message: error.toString(),
+          showRetry: isRetryable,  // ✅ Only show retry if retryable
+          onRetry: isRetryable ? () => ref.invalidate(dataProvider) : null,
+        );
+      },
+    );
+  }
+}
+```
+
+<div dir="rtl">
+
+#### 3. System Errors (أخطاء النظام)
+
+</div>
+
+```dart
+// أخطاء من الـ system نفسه (bugs, unexpected errors)
+class SystemException implements Exception {
+  final String message;
+  final Object? originalError;
+  final StackTrace? stackTrace;
+
+  SystemException(
+    this.message, {
+    this.originalError,
+    this.stackTrace,
+  });
+
+  @override
+  String toString() => message;
+}
+
+@riverpod
+Future<ProcessedData> processData(ProcessDataRef ref, RawData raw) async {
+  try {
+    // Complex processing logic
+    final result = _processInternal(raw);
+
+    if (result == null) {
+      throw SystemException(
+        'Data processing failed unexpectedly',
+        originalError: 'Null result from _processInternal',
+      );
+    }
+
+    return result;
+
+  } catch (error, stackTrace) {
+    if (error is SystemException) rethrow;
+
+    // Unexpected error - wrap as system exception
+    throw SystemException(
+      'An unexpected error occurred',
+      originalError: error,
+      stackTrace: stackTrace,
+    );
+  }
+}
+```
+
+<div dir="rtl">
+
+---
+
+### 🎨 User-Friendly Error Messages
+
+#### ❌ Bad Error Messages:
+
+</div>
+
+```dart
+// ❌ Technical jargon
+"DioException: SocketException: Failed host lookup"
+
+// ❌ Too generic
+"Error"
+
+// ❌ No actionable information
+"Something went wrong"
+
+// ❌ Blaming the user
+"You entered invalid data"
+```
+
+<div dir="rtl">
+
+#### ✅ Good Error Messages:
+
+</div>
+
+```dart
+// ✅ GOOD - User-friendly error messages
+class ErrorMessages {
+  // Network errors
+  static const noInternet = 'No internet connection. Please check your Wi-Fi or mobile data.';
+  static const timeout = 'Request timed out. Please try again.';
+  static const serverError = 'Our servers are having issues. Please try again in a few minutes.';
+
+  // Auth errors
+  static const invalidCredentials = 'Email or password is incorrect. Please try again.';
+  static const accountLocked = 'Your account has been locked. Please contact support.';
+  static const sessionExpired = 'Your session has expired. Please log in again.';
+
+  // Validation errors
+  static const invalidEmail = 'Please enter a valid email address.';
+  static const weakPassword = 'Password must be at least 8 characters with numbers and symbols.';
+  static const required = 'This field is required.';
+
+  // Resource errors
+  static const notFound = 'The requested item was not found.';
+  static const deleted = 'This item has been deleted.';
+  static const accessDenied = 'You don\'t have permission to access this.';
+
+  // System errors
+  static const unexpected = 'An unexpected error occurred. Please try again or contact support.';
+}
+
+// استخدام:
+@riverpod
+Future<User> login(LoginRef ref, String email, String password) async {
+  try {
+    return await api.login(email, password);
+
+  } on DioException catch (e) {
+    if (e.response?.statusCode == 401) {
+      throw Exception(ErrorMessages.invalidCredentials);
+    }
+
+    if (e.response?.statusCode == 423) {
+      throw Exception(ErrorMessages.accountLocked);
+    }
+
+    if (e.type == DioExceptionType.connectionTimeout) {
+      throw Exception(ErrorMessages.timeout);
+    }
+
+    if (e.type == DioExceptionType.connectionError) {
+      throw Exception(ErrorMessages.noInternet);
+    }
+
+    throw Exception(ErrorMessages.unexpected);
+  }
+}
+```
+
+<div dir="rtl">
+
+---
+
+### 🔄 Advanced Error Recovery Patterns
+
+#### Pattern 1: Automatic Retry with Backoff
+
+</div>
+
+```dart
+// ✅ Retry with exponential backoff
+@riverpod
+Future<Data> dataWithRetry(DataWithRetryRef ref) async {
+  const maxRetries = 3;
+  var retryCount = 0;
+
+  while (true) {
+    try {
+      return await api.getData();
+
+    } on NetworkException catch (e) {
+      if (!e.isRetryable || retryCount >= maxRetries) {
+        rethrow;
+      }
+
+      retryCount++;
+      final delay = Duration(seconds: math.pow(2, retryCount).toInt());
+
+      print('Retry $retryCount/$maxRetries after $delay');
+      await Future.delayed(delay);
+
+      if (!ref.mounted) {
+        throw Exception('Provider disposed during retry');
+      }
+    }
+  }
+}
+```
+
+<div dir="rtl">
+
+#### Pattern 2: Fallback to Cache
+
+</div>
+
+```dart
+// ✅ Fallback to cached data on error
+@riverpod
+Future<List<Article>> articles(ArticlesRef ref) async {
+  try {
+    // Try fetching fresh data
+    final articles = await api.getArticles();
+
+    // Save to cache
+    await ref.read(cacheProvider).saveArticles(articles);
+
+    return articles;
+
+  } catch (error) {
+    // Fallback to cache
+    final cached = await ref.read(cacheProvider).getArticles();
+
+    if (cached.isNotEmpty) {
+      // Return cached data (maybe with a flag indicating it's stale)
+      return cached;
+    }
+
+    // No cache available, rethrow error
+    rethrow;
+  }
+}
+
+// في الـ UI - Show indicator for cached data
+class ArticlesWidget extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final articlesAsync = ref.watch(articlesProvider);
+
+    return articlesAsync.when(
+      data: (articles) => Column(
+        children: [
+          // Could add: "Showing cached data" banner
+          ListView(children: articles.map((a) => ArticleTile(a)).toList()),
+        ],
+      ),
+      loading: () => CircularProgressIndicator(),
+      error: (e, s) => ErrorView(error: e),
+    );
+  }
+}
+```
+
+<div dir="rtl">
+
+#### Pattern 3: Graceful Degradation
+
+</div>
+
+```dart
+// ✅ Graceful degradation - partial functionality
+@riverpod
+Future<DashboardData> dashboard(DashboardRef ref) async {
+  // Fetch multiple data sources in parallel
+  final results = await Future.wait([
+    api.getUserData().catchError((e) => null),
+    api.getStats().catchError((e) => null),
+    api.getNotifications().catchError((e) => null),
+  ]);
+
+  // Return partial data if some requests failed
+  return DashboardData(
+    user: results[0] as User?,  // May be null
+    stats: results[1] as Stats?,  // May be null
+    notifications: results[2] as List<Notification>? ?? [],  // Empty list fallback
+  );
+}
+
+// في الـ UI - Show what's available
+class DashboardWidget extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final dashboardAsync = ref.watch(dashboardProvider);
+
+    return dashboardAsync.when(
+      data: (dashboard) => Column(
+        children: [
+          if (dashboard.user != null)
+            UserSection(dashboard.user!)
+          else
+            ErrorBanner('Could not load user data'),
+
+          if (dashboard.stats != null)
+            StatsSection(dashboard.stats!)
+          else
+            ErrorBanner('Could not load stats'),
+
+          NotificationsSection(dashboard.notifications),
+        ],
+      ),
+      loading: () => CircularProgressIndicator(),
+      error: (e, s) => FullErrorView(e),
+    );
+  }
+}
+```
+
+<div dir="rtl">
+
+---
+
+### 🔔 Global Error Handling
+
+#### استخدام ref.listen للـ Global Error Handling
+
+</div>
+
+```dart
+// ✅ Global error listener
+class MyApp extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Listen to critical providers globally
+    ref.listen<AsyncValue<AuthState>>(
+      authStateProvider,
+      (previous, next) {
+        next.whenOrNull(
+          error: (error, stackTrace) {
+            // Global auth error handling
+            if (error.toString().contains('session_expired')) {
+              // Navigate to login
+              Navigator.pushNamedAndRemoveUntil(
+                context,
+                '/login',
+                (route) => false,
+              );
+
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text(ErrorMessages.sessionExpired)),
+              );
+            }
+          },
+        );
+      },
+    );
+
+    return MaterialApp(
+      home: HomeScreen(),
+    );
+  }
+}
+```
+
+<div dir="rtl">
+
+---
+
 ## 🔗 الخطوة الجاية
 
 في الملف الجاي هنتعلم **Loading States & UI Patterns**:
