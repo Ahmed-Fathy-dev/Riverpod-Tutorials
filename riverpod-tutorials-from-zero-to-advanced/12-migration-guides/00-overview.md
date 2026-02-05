@@ -10,6 +10,7 @@
 - 🔄 من Provider إلى Riverpod
 - 🧊 من Bloc إلى Riverpod
 - 🎯 من GetX إلى Riverpod
+- 🚀 من Riverpod 2.x إلى Riverpod 3.0
 - 📋 Migration strategies
 
 ---
@@ -39,6 +40,13 @@
 - Coexistence patterns
 - Testing during migration
 - Common pitfalls
+
+### 5. From Riverpod 2.x to 3.0 (05-from-riverpod-2-to-3.md)
+- StateNotifier → Notifier migration
+- ref.state, ref.listenSelf changes
+- AutoDispose by default
+- ref.mounted for async safety
+- Complete breaking changes guide
 
 ---
 
