@@ -134,6 +134,56 @@ ProviderScope(
 
 ---
 
+### 6. Mutations - Side Effects (06-mutations.md) 🔥
+**المفاهيم:**
+- @mutation annotation
+- MutationState (Idle/Pending/Success/Error)
+- Side effects handling
+- Button clicks & form submissions
+- Optimistic updates
+
+**مثال:**
+```dart
+@riverpod
+class TodoList extends _$TodoList {
+  @override
+  List<Todo> build() => [];
+
+  @mutation
+  Future<void> addTodo(String title) async {
+    final newTodo = await api.addTodo(title);
+    state = [...state, newTodo];
+  }
+}
+
+// في الـ UI - track mutation state!
+final addMutation = ref.watch(controller.addTodoMutation);
+if (addMutation.isPending) CircularProgressIndicator();
+```
+
+---
+
+### 7. Paused Listeners (07-paused-listeners.md) ⚡
+**المفاهيم:**
+- Automatic provider pausing
+- TickerMode integration
+- Performance optimization
+- ref.isPaused property
+- Battery & bandwidth savings
+
+**مثال:**
+```dart
+@riverpod
+Stream<List<Message>> chatMessages(ChatMessagesRef ref) async* {
+  // ✅ Automatically paused when tab not visible!
+  yield* socket.channel('messages').stream;
+}
+
+// No code changes needed - automatic in Riverpod 3.0!
+```
+
+---
+
 ## 🎨 ما الذي ستتعلمه
 
 بعد إنهاء هذا القسم، ستكون قادراً على:
