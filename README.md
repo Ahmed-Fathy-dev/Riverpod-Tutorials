@@ -271,8 +271,6 @@ cat 00-about-this-guide.md
 2. 💡 **ابعت Pull Request**
 3. ⭐ **اعمل Star** للمشروع
 
-**للمساهمين:** شوف ملفات الإرشادات في [`.docs/`](./.docs/)
-
 ---
 
 ## 📚 المصادر الرسمية
@@ -291,14 +289,6 @@ cat 00-about-this-guide.md
 - 📢 **شاركه** مع زملائك
 - 👀 **Follow** للتحديثات
 - 💬 **اكتب Review** أو تعليق
-
----
-
-## 📞 التواصل
-
-- 👨‍💻 **GitHub**: [Ahmed-Fathy-dev](https://github.com/Ahmed-Fathy-dev)
-- 🐛 **Issues**: [Report an Issue](https://github.com/Ahmed-Fathy-dev/Riverpod-Tutorials/issues)
-- 💬 **Discussions**: [Join Discussion](https://github.com/Ahmed-Fathy-dev/Riverpod-Tutorials/discussions)
 
 ---
 
