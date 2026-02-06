@@ -17,11 +17,11 @@
 ```yaml
 # pubspec.yaml
 dependencies:
-  flutter_riverpod: ^2.5.0
-  riverpod_annotation: ^2.3.0
-  
+  flutter_riverpod: ^3.0.0
+  riverpod_annotation: ^3.0.0
+
 dev_dependencies:
-  riverpod_generator: ^2.3.0
+  riverpod_generator: ^3.0.0
   build_runner: ^2.4.0
 ```
 
