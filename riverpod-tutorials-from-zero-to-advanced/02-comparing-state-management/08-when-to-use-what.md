@@ -196,9 +196,9 @@ Riverpod
 ✅ Auto disposal (cart cleanup)
 
 مثال:
-final cartProvider = StateNotifierProvider<CartNotifier, CartState>((ref) {
-  return CartNotifier();
-});
+final cartProvider = NotifierProvider<CartNotifier, CartState>(
+  () => CartNotifier(),
+);
 
 final checkoutProvider = FutureProvider.autoDispose((ref) async {
   final cart = ref.watch(cartProvider);

@@ -191,17 +191,18 @@ final counterProvider = ChangeNotifierProvider((ref) {
 });
 
 // After (Riverpod) - Better approach
-class CounterNotifier extends StateNotifier<int> {
-  CounterNotifier() : super(0);
+class CounterNotifier extends Notifier<int> {
+  @override
+  int build() => 0;
 
   void increment() {
     state = state + 1; // No notifyListeners needed!
   }
 }
 
-final counterProvider = StateNotifierProvider<CounterNotifier, int>((ref) {
-  return CounterNotifier();
-});
+final counterProvider = NotifierProvider<CounterNotifier, int>(
+  () => CounterNotifier(),
+);
 
 // Or even simpler with StateProvider
 final counterProvider = StateProvider<int>((ref) => 0);
@@ -651,9 +652,9 @@ final localeProvider = StateProvider<Locale>((ref) => Locale('ar'));
 
 ```dart
 // New feature - use Riverpod from day 1
-final newFeatureProvider = StateNotifierProvider<NewFeatureNotifier, State>((ref) {
-  return NewFeatureNotifier();
-});
+final newFeatureProvider = NotifierProvider<NewFeatureNotifier, State>(
+  () => NewFeatureNotifier(),
+);
 ```
 
 <div dir="rtl">

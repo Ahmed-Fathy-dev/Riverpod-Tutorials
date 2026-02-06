@@ -223,14 +223,15 @@ class Counter extends ChangeNotifier {
 
 **المبدأ:** الـ State بيتبدل كله (state replacement)
 
-**بيستخدمه:** Riverpod (StateNotifier), BLoC
+**بيستخدمه:** Riverpod (Notifier), BLoC
 
 </div>
 
 ```dart
 // Immutable State Pattern
-class CounterNotifier extends StateNotifier<int> {
-  CounterNotifier() : super(0); // Immutable state
+class CounterNotifier extends Notifier<int> {
+  @override
+  int build() => 0; // Initial state
 
   void increment() {
     state = state + 1; // Replace entire state
@@ -444,7 +445,10 @@ class _LoginPageState extends State<LoginPage> {
 }
 
 // ✅ Easy to Test (Separated)
-class LoginNotifier extends StateNotifier<LoginState> {
+class LoginNotifier extends Notifier<LoginState> {
+  @override
+  LoginState build() => LoginState.initial();
+
   Future<void> login(String email, String password) async {
     // Pure business logic
     // Can test without any widgets!
@@ -489,7 +493,7 @@ class _MyAppState extends State<MyApp> {
 final counterProvider = StateProvider<int>((ref) => 0);
 final userProvider = StateProvider<User?>((ref) => null);
 final productsProvider = StateProvider<List<Product>>((ref) => []);
-final cartProvider = StateNotifierProvider<CartNotifier, List<CartItem>>(/*...*/);
+final cartProvider = NotifierProvider<CartNotifier, List<CartItem>>(() => CartNotifier());
 final themeProvider = StateProvider<bool>((ref) => false);
 // Each piece is isolated and manageable
 ```

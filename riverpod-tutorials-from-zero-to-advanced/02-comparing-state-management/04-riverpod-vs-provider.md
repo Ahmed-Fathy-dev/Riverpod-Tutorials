@@ -349,9 +349,9 @@ class MyWidget extends ConsumerWidget {
 }
 
 // ✅ Provider must exist at compile time
-final cartProvider = StateNotifierProvider<CartNotifier, CartState>((ref) {
-  return CartNotifier();
-});
+final cartProvider = NotifierProvider<CartNotifier, CartState>(
+  () => CartNotifier(),
+);
 
 class AnotherWidget extends ConsumerWidget {
   @override
@@ -755,11 +755,15 @@ class UserTodosPage extends StatelessWidget {
 ```dart
 // ✅ Family makes scoping easy!
 
-final todosProvider = StateNotifierProvider.family<TodosNotifier, TodosState, String>(
-  (ref, userId) {
-    return TodosNotifier(userId);
-  },
+final todosProvider = NotifierProvider.family<TodosNotifier, TodosState, String>(
+  () => TodosNotifier(),
 );
+
+// Note: في Riverpod 3.0، الـ userId parameter يتم تمريره في build() method:
+// class TodosNotifier extends FamilyNotifier<TodosState, String> {
+//   @override
+//   TodosState build(String userId) { /* ... */ }
+// }
 
 // Use with parameter
 class UserTodosPage extends ConsumerWidget {
