@@ -155,7 +155,7 @@ class Counter extends _$Counter {
         throw Exception('Random failure!');
       }
 
-      final currentValue = state.valueOrNull ?? 0;
+      final currentValue = state.hasValue ? state.value! : 0;
       print('5. Returning success value');
       return currentValue + 1;
     });
@@ -356,8 +356,9 @@ class Users extends _$Users {
   }
 
   Future<void> refresh() async {
-    // Get current data
-    final previousData = state.valueOrNull;
+    // Check if we have current data
+    final hasPreviousData = state.hasValue;
+    final previousData = hasPreviousData ? state.value! : null;
 
     // Set loading
     state = const AsyncValue.loading();
@@ -366,7 +367,7 @@ class Users extends _$Users {
     final result = await AsyncValue.guard(() => api.getUsers());
 
     // If error and we have previous data, keep it
-    if (result.hasError && previousData != null) {
+    if (result.hasError && hasPreviousData) {
       // Show error but keep old data in UI
       state = AsyncValue.error(
         result.error!,
@@ -1526,7 +1527,8 @@ class Todos extends _$Todos {
 
   Future<void> refresh() async {
     // Keep previous data while refreshing
-    final previousData = state.valueOrNull;
+    final hasPreviousData = state.hasValue;
+    final previousData = hasPreviousData ? state.value! : null;
 
     state = const AsyncValue.loading();
 
@@ -1536,7 +1538,7 @@ class Todos extends _$Todos {
     });
 
     // If error and we have previous data, show error but keep data
-    if (result.hasError && previousData != null) {
+    if (result.hasError && hasPreviousData) {
       state = AsyncValue.data(previousData);
       // Error will be shown in SnackBar
     } else {
@@ -1693,9 +1695,17 @@ class TodosScreen extends ConsumerWidget {
 
 ## 🎯 Enhanced Error Handling - Riverpod 3.0
 
-### 🆕 ProviderException (جديد في Riverpod 3.0)
+### 🆕 ProviderException (تحديث في Riverpod 3.0)
 
-**ProviderException** هو wrapper جديد للـ errors في Riverpod 3.0، بيساعدك تحسن الـ error messages وتضيف context.
+**ملاحظة مهمة عن السلوك في Riverpod 3.0:**
+- عند فشل Provider في الـ build، يرمي الـ **exception الأصلي مباشرة** (بدون wrapping)
+- فقط عند استخدام `ref.watch()` أو `ref.read()` من provider آخر، يتم wrapping الـ error في `ProviderException`
+- `ProviderException` يحتوي على الـ exception الأصلي في الـ `.exception` property
+
+**ProviderException** بيساعدك تحسن الـ error messages وتضيف context، وبيستخدم بشكل أساسي عند:
+- إضافة معلومات إضافية للـ error
+- تتبع Provider اللي حصل فيه الخطأ
+- Wrapping errors من sources مختلفة
 
 #### المشكلة: Generic Error Messages
 
@@ -1758,6 +1768,29 @@ Future<User> user(UserRef ref, String userId) async {
 // Error: Failed to load user
 // Cause: User with ID abc123 does not exist
 // Provider: userProvider(abc123)
+
+// 🔍 الوصول للـ exception الأصلي:
+class UserWidget extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final userAsync = ref.watch(userProvider('123'));
+
+    return userAsync.when(
+      data: (user) => UserProfile(user),
+      loading: () => CircularProgressIndicator(),
+      error: (error, stack) {
+        // عند استخدام ref.watch، الـ error يكون wrapped في ProviderException
+        if (error is ProviderException) {
+          print('Provider error message: ${error.message}');
+          print('Original exception: ${error.exception}'); // الـ exception الأصلي
+          return Text('Error: ${error.message}');
+        }
+
+        return Text('Unexpected error: $error');
+      },
+    );
+  }
+}
 ```
 
 <div dir="rtl">
