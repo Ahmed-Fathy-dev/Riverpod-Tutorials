@@ -282,14 +282,17 @@ Widget build(BuildContext context, WidgetRef ref) {
   final activityAsync = ref.watch(activityProvider);
 
   return switch (activityAsync) {
-    // Only match if value is not null
-    AsyncValue(:final value?) => Text('Activity: $value'),
+    // Match when we have a non-null value
+    AsyncValue(hasValue: true, value: final v?) => Text('Activity: $v'),
 
-    // Explicitly handle null data
-    AsyncValue(hasValue: true, :final valueOrNull) when valueOrNull == null =>
+    // Explicitly handle null data (when hasValue is true but value is null)
+    AsyncValue(hasValue: true, value: null) =>
       const Text('No activity available'),
 
+    // Handle errors
     AsyncValue(:final error?) => Text('Error: $error'),
+
+    // Handle loading
     _ => const CircularProgressIndicator(),
   };
 }
@@ -912,7 +915,7 @@ class Counter extends _$Counter {
 
   Future<void> increment() async {
     // Get current value
-    final currentValue = state.valueOrNull ?? 0;
+    final currentValue = state.hasValue ? state.value! : 0;
 
     // Optimistically update
     state = AsyncValue.data(currentValue + 1);
@@ -1032,9 +1035,11 @@ class PaginatedUsers extends _$PaginatedUsers {
   }
 
   Future<void> loadMore() async {
-    // Get current state
-    final currentData = state.valueOrNull;
-    if (currentData == null || !currentData.hasMore) return;
+    // Check if we have data
+    if (!state.hasValue) return;
+
+    final currentData = state.value!;
+    if (!currentData.hasMore) return;
 
     // Set loading for next page
     state = AsyncValue.data(currentData); // Keep current data

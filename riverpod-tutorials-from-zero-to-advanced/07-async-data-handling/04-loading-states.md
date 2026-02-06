@@ -166,7 +166,7 @@ class PaginatedProducts extends _$PaginatedProducts {
 
   Future<void> loadMore() async {
     // Get current state
-    final currentProducts = state.valueOrNull ?? [];
+    final currentProducts = state.hasValue ? state.value! : <Product>[];
 
     // Keep showing current data
     state = AsyncValue.data(currentProducts);
@@ -742,8 +742,10 @@ class PaginatedProducts extends _$PaginatedProducts {
   }
 
   Future<void> loadMore() async {
-    final currentData = state.valueOrNull;
-    if (currentData == null || !currentData.hasMore) return;
+    if (!state.hasValue) return;
+
+    final currentData = state.value!;
+    if (!currentData.hasMore) return;
 
     // Set loading (keeps current data)
     state = AsyncValue.data(currentData);
@@ -1184,12 +1186,13 @@ if (_scrollController.position.pixels ==
 ```dart
 // ✅ GOOD - Check before loading more
 Future<void> loadMore() async {
-  final currentData = state.valueOrNull;
+  // Don't load if already loading or no value or no more data
+  if (state.isLoading || !state.hasValue) {
+    return;
+  }
 
-  // Don't load if already loading or no more data
-  if (currentData == null ||
-      !currentData.hasMore ||
-      state.isLoading) {
+  final currentData = state.value!;
+  if (!currentData.hasMore) {
     return;
   }
 
@@ -1295,8 +1298,12 @@ class Products extends _$Products {
   }
 
   Future<void> loadMore() async {
-    final currentData = state.valueOrNull;
-    if (currentData == null || !currentData.hasMore || state.isLoading) {
+    if (state.isLoading || !state.hasValue) {
+      return;
+    }
+
+    final currentData = state.value!;
+    if (!currentData.hasMore) {
       return;
     }
 
