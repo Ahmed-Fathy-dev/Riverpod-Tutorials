@@ -1820,27 +1820,32 @@ class ValidationException implements Exception {
 @riverpod
 class Registration extends _$Registration {
   @override
-  User? build() => null;
+  AsyncValue<User?> build() => const AsyncValue.data(null);
 
-  @mutation
-  Future<User> register(String email, String password) async {
-    // Validate input
-    final errors = <String, String>{};
+  Future<void> register(String email, String password) async {
+    // Set loading state
+    state = const AsyncLoading();
 
-    if (!email.contains('@')) {
-      errors['email'] = 'Invalid email format';
-    }
+    // Validate and register with error handling
+    state = await AsyncValue.guard(() async {
+      // Validate input
+      final errors = <String, String>{};
 
-    if (password.length < 8) {
-      errors['password'] = 'Password must be at least 8 characters';
-    }
+      if (!email.contains('@')) {
+        errors['email'] = 'Invalid email format';
+      }
 
-    if (errors.isNotEmpty) {
-      throw ValidationException('Invalid input', errors);
-    }
+      if (password.length < 8) {
+        errors['password'] = 'Password must be at least 8 characters';
+      }
 
-    // Proceed with registration
-    return await api.register(email, password);
+      if (errors.isNotEmpty) {
+        throw ValidationException('Invalid input', errors);
+      }
+
+      // Proceed with registration
+      return await api.register(email, password);
+    });
   }
 }
 
@@ -1848,18 +1853,20 @@ class Registration extends _$Registration {
 class RegistrationForm extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final controller = ref.watch(registrationProvider.notifier);
-    final mutation = ref.watch(controller.registerMutation);
+    final registrationState = ref.watch(registrationProvider);
 
     String? emailError;
     String? passwordError;
 
-    if (mutation case MutationError(:final error)) {
-      if (error is ValidationException) {
-        emailError = error.fieldErrors['email'];
-        passwordError = error.fieldErrors['password'];
-      }
-    }
+    // Extract field-specific errors
+    registrationState.whenOrNull(
+      error: (error, stack) {
+        if (error is ValidationException) {
+          emailError = error.fieldErrors['email'];
+          passwordError = error.fieldErrors['password'];
+        }
+      },
+    );
 
     return Column(
       children: [
@@ -1876,7 +1883,18 @@ class RegistrationForm extends ConsumerWidget {
           ),
           obscureText: true,
         ),
-        // Submit button...
+        ElevatedButton(
+          onPressed: registrationState.isLoading
+              ? null
+              : () {
+                  ref
+                      .read(registrationProvider.notifier)
+                      .register('user@example.com', 'password123');
+                },
+          child: registrationState.isLoading
+              ? CircularProgressIndicator()
+              : Text('Register'),
+        ),
       ],
     );
   }
