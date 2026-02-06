@@ -766,11 +766,19 @@ final userRepositoryProvider = Provider<UserRepository>((ref) {
   return UserRepository(database);
 });
 
-final authProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref) {
-  // Auth depends on repository
-  final repository = ref.watch(userRepositoryProvider);
-  return AuthNotifier(repository);
-});
+final authProvider = NotifierProvider<AuthNotifier, AuthState>(
+  () => AuthNotifier(),
+);
+
+// Note: AuthNotifier class يجب أن يستخدم Notifier:
+// class AuthNotifier extends Notifier<AuthState> {
+//   @override
+//   AuthState build() {
+//     final repository = ref.watch(userRepositoryProvider);
+//     // ... initialize with repository
+//     return AuthState.initial();
+//   }
+// }
 
 // Riverpod handles all the dependency injection!
 ```

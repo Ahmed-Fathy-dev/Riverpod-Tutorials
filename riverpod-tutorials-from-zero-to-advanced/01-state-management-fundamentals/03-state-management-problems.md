@@ -400,12 +400,13 @@ void addToCart(Product product) {
 ```dart
 // ✅ GOOD: Single source of truth
 
-final cartProvider = StateNotifierProvider<CartNotifier, List<CartItem>>((ref) {
-  return CartNotifier();
-});
+final cartProvider = NotifierProvider<CartNotifier, List<CartItem>>(
+  () => CartNotifier(),
+);
 
-class CartNotifier extends StateNotifier<List<CartItem>> {
-  CartNotifier() : super([]);
+class CartNotifier extends Notifier<List<CartItem>> {
+  @override
+  List<CartItem> build() => [];
 
   void addItem(Product product) {
     state = [...state, CartItem(product)];
@@ -597,10 +598,14 @@ test('login validation works', () {
 ```dart
 // ✅ GOOD: Separate, testable business logic
 
-class LoginNotifier extends StateNotifier<LoginState> {
-  LoginNotifier(this._authRepository) : super(LoginState.initial());
+class LoginNotifier extends Notifier<LoginState> {
+  late final AuthRepository _authRepository;
 
-  final AuthRepository _authRepository;
+  @override
+  LoginState build() {
+    _authRepository = ref.watch(authRepositoryProvider);
+    return LoginState.initial();
+  }
 
   Future<void> login(String email, String password) async {
     // Validation
@@ -634,9 +639,9 @@ class LoginNotifier extends StateNotifier<LoginState> {
   }
 }
 
-final loginProvider = StateNotifierProvider<LoginNotifier, LoginState>((ref) {
-  return LoginNotifier(ref.watch(authRepositoryProvider));
-});
+final loginProvider = NotifierProvider<LoginNotifier, LoginState>(
+  () => LoginNotifier(),
+);
 ```
 
 <div dir="rtl">

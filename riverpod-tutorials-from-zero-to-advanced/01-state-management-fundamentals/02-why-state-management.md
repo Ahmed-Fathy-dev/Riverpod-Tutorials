@@ -363,8 +363,9 @@ class _LoginScreenState extends State<LoginScreen> {
 // ✅ Solution: Separate business logic from UI
 
 // Business logic in provider
-class CartNotifier extends StateNotifier<List<CartItem>> {
-  CartNotifier() : super([]);
+class CartNotifier extends Notifier<List<CartItem>> {
+  @override
+  List<CartItem> build() => [];
 
   void addItem(CartItem item) {
     state = [...state, item];
@@ -414,8 +415,8 @@ class ProductCard extends ConsumerWidget {
 // ✅ Solution: Easy state sharing
 
 // Define provider once
-final cartProvider = StateNotifierProvider<CartNotifier, List<CartItem>>(
-  (ref) => CartNotifier(),
+final cartProvider = NotifierProvider<CartNotifier, List<CartItem>>(
+  () => CartNotifier(),
 );
 
 // Access from anywhere!
