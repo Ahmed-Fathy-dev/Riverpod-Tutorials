@@ -620,8 +620,12 @@ class DownloadPage extends ConsumerWidget {
 // Notifier for specific todo item
 @riverpod
 class TodoItem extends _$TodoItem {
+  late String _id; // Store the parameter for later use
+
   @override
   Future<Todo> build(String id) async {
+    _id = id; // Save parameter value
+
     // Fetch specific todo by ID
     final response = await http.get(
       Uri.parse('https://api.example.com/todos/$id'),
@@ -639,24 +643,33 @@ class TodoItem extends _$TodoItem {
 
     state = await AsyncValue.guard(() async {
       await http.patch(
-        Uri.parse('https://api.example.com/todos/${await id}'),
+        Uri.parse('https://api.example.com/todos/$_id'),
         body: jsonEncode({'title': newTitle}),
       );
 
-      return await build(await id);
+      return await build(_id);
     });
   }
 
-  // Access parameter value
-  Future<String> get id async {
-    // The parameter is available through the generated code
-    return (await future).id;
-  }
+  // Alternative: Pass id as parameter to the method
+  // Future<void> updateTitle(String id, String newTitle) async {
+  //   state = const AsyncLoading();
+  //   state = await AsyncValue.guard(() async {
+  //     await http.patch(
+  //       Uri.parse('https://api.example.com/todos/$id'),
+  //       body: jsonEncode({'title': newTitle}),
+  //     );
+  //     return await build(id);
+  //   });
+  // }
 }
 
 // Usage - different instances for different IDs
 final todo1 = ref.watch(todoItemProvider('1'));
 final todo2 = ref.watch(todoItemProvider('2'));
+
+// Call methods on the notifier
+ref.read(todoItemProvider('1').notifier).updateTitle('New Title');
 ```
 
 <div dir="rtl">
